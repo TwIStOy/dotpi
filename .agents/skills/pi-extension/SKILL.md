@@ -95,7 +95,7 @@ See [references/events.md](references/events.md) for the full event catalog.
 | Method | Purpose |
 |---|---|
 | `pi.on(event, handler)` | Subscribe to events |
-| `pi.registerTool(def)` | Register LLM-callable tool |
+| `pi.registerTool(def)` | Register LLM-callable tool (accepts `defineTool()` wrapper for typed rendering) |
 | `pi.registerCommand(name, opts)` | Register slash command (`/name`) |
 | `pi.registerProvider(name, config)` | Register/override model provider |
 | `pi.registerMessageRenderer(type, fn)` | Custom message TUI renderer |
@@ -258,10 +258,13 @@ session.dispose();
 
 ## Important Notes
 
+- **`defineTool`**: Exported from `@mariozechner/pi-coding-agent`. Wraps a tool definition to add typed `renderCall`/`renderResult` support. Use: `pi.registerTool(defineTool({ ... }))`.
+- **`PackageSource`**: Settings type for npm/git packages. `type PackageSource = string | { source, extensions?, skills?, prompts?, themes? }`. Access via `ctx.settingsManager.getPackages()`.
+- **`resources_discover` event**: Extensions can return `{ skillPaths, promptPaths, themePaths }` to advertise additional resource directories.
 - **Security**: Extensions run with full system permissions. Only install from trusted sources.
 - **TypeScript via jiti**: No compilation step needed.
 - **Output truncation**: Tools MUST truncate output. Use `truncateHead`/`truncateTail` from `@mariozechner/pi-coding-agent`. Default limits: 50KB, 2000 lines.
-- **String enums**: Use `StringEnum` from `@mariozechner/pi-ai`, NOT `Type.Union`/`Type.Literal` (incompatible with Google API). Note: `@earendil-works/pi-ai` does NOT export `StringEnum` — use `Type.Union`/`Type.Literal` there instead.
+- **String enums**: Use `StringEnum` from `@mariozechner/pi-ai`, NOT `Type.Union`/`Type.Literal` (incompatible with Google API). Note: `@earendil-works/pi-ai` does NOT export `StringEnum` — use `Type.Union`/`Type.Literal` there instead. Import `Type` from `"typebox"` (or `"@sinclair/typebox"` for upstream).
 - **ThinkingLevel**: Import from `@mariozechner/pi-agent-core` (or `@earendil-works/pi-agent-core`), NOT from pi-ai or pi-coding-agent. Type: `"off" | "minimal" | "low" | "medium" | "high" | "xhigh"`.
 - **Error handling**: Tool `execute` errors must be thrown (not returned). Thrown errors are caught and reported with `isError: true`.
 - **Check `ctx.hasUI`** before using UI methods in non-interactive modes (print/JSON).
