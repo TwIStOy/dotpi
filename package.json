@@ -1,0 +1,11 @@
+{
+  "name": "dotpi",
+  "version": "0.1.0",
+  "type": "module",
+  "pi": {
+    "extensions": ["./src/index.ts"]
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "latest"
+  }
+}
