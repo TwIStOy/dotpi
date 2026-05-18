@@ -11,6 +11,7 @@ import type { AgentManager } from "../agent-manager.js"
 import type { SubagentType } from "../types.js"
 import { formatMs } from "../formatting.js"
 import { formatLifetimeTokens, getStatusNote, textResult } from "./utils.js"
+import { createActivityTracker, type AgentWidget, type AgentActivity } from "../ui/agent-widget.js"
 
 export interface AgentDetails {
   [key: string]: unknown
@@ -26,6 +27,8 @@ export interface AgentDetails {
 export function registerAgentTool(
   pi: ExtensionAPI,
   manager: AgentManager,
+  widget: AgentWidget,
+  agentActivity: Map<string, AgentActivity>,
 ) {
   pi.registerTool(defineTool({
     name: "Agent",
@@ -142,6 +145,8 @@ Guidelines:
       if (runInBackground) {
         let id: string
         try {
+          const tracker = createActivityTracker(widget, agentActivity, { id: "__pending__" } as any)
+
           id = manager.spawn(pi, ctx, subagentType, params.prompt, {
             description: params.description,
             model,
@@ -160,7 +165,26 @@ Guidelines:
               runInBackground,
               isolation,
             },
+            onToolActivity: tracker.onToolActivity,
+            onTextDelta: tracker.onTextDelta,
+            onTurnEnd: tracker.onTurnEnd,
+            onAssistantUsage: tracker.onAssistantUsage,
+            onSessionCreated: (session) => {
+              tracker.onSessionCreated()
+              const rec = manager.getRecord(id)
+              if (rec) {
+                rec.outputFile = createOutputFilePath(ctx.cwd, id, ctx.sessionManager.getSessionId())
+                writeInitialEntry(rec.outputFile, id, params.prompt, ctx.cwd)
+                rec.outputCleanup = streamToOutputFile(session, rec.outputFile, id, ctx.cwd)
+              }
+            },
           })
+
+          const activity = agentActivity.get("__pending__")
+          if (activity) {
+            agentActivity.delete("__pending__")
+            agentActivity.set(id, activity)
+          }
         } catch (err) {
           return textResult(err instanceof Error ? err.message : String(err))
         }
@@ -168,9 +192,10 @@ Guidelines:
         const record = manager.getRecord(id)
         if (record) {
           record.toolCallId = _toolCallId
-          record.outputFile = createOutputFilePath(ctx.cwd, id, ctx.sessionManager.getSessionId())
-          writeInitialEntry(record.outputFile, id, params.prompt, ctx.cwd)
         }
+
+        widget.ensureTimer()
+        widget.update()
 
         pi.events.emit("subagents:created", {
           id,
@@ -204,8 +229,14 @@ Guidelines:
         )
       }
 
+      widget.ensureTimer()
+      widget.update()
+
       let record
       try {
+        const fgTracker = {
+          onSessionCreated: (session: any) => {},
+        }
         record = await manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {
           description: params.description,
           model,
@@ -224,10 +255,16 @@ Guidelines:
             isolation,
           },
           signal,
+          onSessionCreated: (session) => {
+            fgTracker.onSessionCreated(session)
+          },
         })
       } catch (err) {
         return textResult(err instanceof Error ? err.message : String(err))
       }
+
+      widget.markFinished(record.id)
+      widget.update()
 
       const tokenText = formatLifetimeTokens(record)
       const fallbackNote = fellBack

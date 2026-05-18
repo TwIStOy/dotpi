@@ -1,290 +1,365 @@
-import type { Component, TUI } from "@earendil-works/pi-tui"
 import { truncateToWidth } from "@earendil-works/pi-tui"
-import type { AgentRecord } from "../types.js"
+import type { AgentRecord, SubagentType } from "../types.js"
 import { formatDuration, formatTokens, formatTurns } from "../formatting.js"
 import { getLifetimeTotal, getSessionContextPercent } from "../usage.js"
 import type { ToolActivity } from "../agent-runner.js"
+import type { AgentManager } from "../agent-manager.js"
 
 export interface AgentActivity {
-  activeTool: string | null
-  activeToolCount: number
+  activeTools: Map<string, string>
+  toolUses: number
+  responseText: string
+  session?: { getSessionStats(): { tokens: { input: number; output: number; cacheWrite: number }; contextUsage?: { percent: number | null } } }
   turnCount: number
   maxTurns?: number
-  responseText: string
-  lastActivityAt: number
+  lifetimeUsage: { input: number; output: number; cacheWrite: number }
 }
 
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-
-type ThemeLike = {
+type Theme = {
   fg(color: string, text: string): string
   bold(text: string): string
 }
 
-const TOOL_VERBS: Record<string, string> = {
+type UICtx = {
+  setWidget(
+    key: string,
+    content: undefined | ((tui: any, theme: Theme) => { render(): string[]; invalidate(): void }),
+    options?: { placement?: "aboveEditor" | "belowEditor" },
+  ): void
+}
+
+const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+const MAX_WIDGET_LINES = 12
+const ERROR_STATUSES = new Set(["error", "aborted", "steered", "stopped"])
+
+const TOOL_DISPLAY: Record<string, string> = {
   read: "reading",
   bash: "running command",
   edit: "editing",
   write: "writing",
   grep: "searching",
-  find: "finding",
+  find: "finding files",
   ls: "listing",
 }
 
-function describeActivity(activity: AgentActivity | undefined): string {
-  if (!activity) return "thinking…"
-  if (activity.activeTool) {
-    const verb = TOOL_VERBS[activity.activeTool] ?? activity.activeTool
-    const count = activity.activeToolCount > 1 ? ` ${activity.activeToolCount} files` : ""
-    return `${verb}${count}…`
+function describeActivity(activeTools: Map<string, string>, responseText?: string): string {
+  if (activeTools.size > 0) {
+    const groups = new Map<string, number>()
+    for (const toolName of activeTools.values()) {
+      const action = TOOL_DISPLAY[toolName] ?? toolName
+      groups.set(action, (groups.get(action) ?? 0) + 1)
+    }
+    const parts: string[] = []
+    for (const [action, count] of groups) {
+      if (count > 1) {
+        parts.push(`${action} ${count} ${action === "searching" ? "patterns" : "files"}`)
+      } else {
+        parts.push(action)
+      }
+    }
+    return parts.join(", ") + "…"
   }
-  const text = activity.responseText?.trim()
-  if (text && text.length > 0) {
-    const preview = text.length > 60 ? text.slice(0, 60) + "…" : text
-    return preview
+  if (responseText && responseText.trim().length > 0) {
+    const line = responseText.split("\n").find(l => l.trim())?.trim() ?? ""
+    if (line.length <= 60) return line
+    return line.slice(0, 60) + "…"
   }
   return "thinking…"
 }
 
-export class AgentWidget implements Component {
-  private activities = new Map<string, AgentActivity>()
-  private records = new Map<string, AgentRecord>()
-  private frameIndex = 0
-  private intervalId: ReturnType<typeof setInterval> | undefined
-  private invalidated = false
-  private ui: TUI | undefined
-  private theme: ThemeLike | undefined
-  private maxVisible: number
-
-  constructor(maxVisible = 4) {
-    this.maxVisible = maxVisible
+function formatSessionTokens(tokens: number, percent: number | null, theme: Theme, compactions = 0): string {
+  const tokenStr = formatTokens(tokens)
+  const annot: string[] = []
+  if (percent !== null) {
+    const color = percent >= 85 ? "error" : percent >= 70 ? "warning" : "dim"
+    annot.push(theme.fg(color, `${Math.round(percent)}%`))
   }
-
-  bindTui(ui: TUI, theme: ThemeLike): void {
-    this.ui = ui
-    this.theme = theme
-    this.intervalId = setInterval(() => {
-      this.frameIndex = (this.frameIndex + 1) % SPINNER_FRAMES.length
-      this.invalidated = true
-      this.ui?.requestRender()
-    }, 100)
+  if (compactions > 0) {
+    annot.push(theme.fg("dim", `↻${compactions}`))
   }
+  if (annot.length === 0) return tokenStr
+  return `${tokenStr} (${annot.join(" · ")})`
+}
 
-  updateAgent(record: AgentRecord): void {
-    this.records.set(record.id, record)
-    if (record.status !== "running" && record.status !== "queued") {
-      this.activities.delete(record.id)
+export class AgentWidget {
+  private uiCtx: UICtx | undefined
+  private widgetFrame = 0
+  private widgetInterval: ReturnType<typeof setInterval> | undefined
+  private finishedTurnAge = new Map<string, number>()
+  private static readonly ERROR_LINGER_TURNS = 2
+  private widgetRegistered = false
+  private tui: any | undefined
+
+  constructor(
+    private manager: AgentManager,
+    private agentActivity: Map<string, AgentActivity>,
+  ) {}
+
+  setUICtx(ctx: UICtx) {
+    if (ctx !== this.uiCtx) {
+      this.uiCtx = ctx
+      this.widgetRegistered = false
+      this.tui = undefined
     }
-    this.invalidated = true
-    this.ui?.requestRender()
   }
 
-  updateActivity(agentId: string, activity: Partial<AgentActivity>): void {
-    const existing = this.activities.get(agentId) ?? {
-      activeTool: null,
-      activeToolCount: 0,
-      turnCount: 0,
-      responseText: "",
-      lastActivityAt: Date.now(),
+  onTurnStart() {
+    for (const [id, age] of this.finishedTurnAge) {
+      this.finishedTurnAge.set(id, age + 1)
     }
-    if (activity.activeTool && activity.activeTool === existing.activeTool) {
-      activity.activeToolCount = existing.activeToolCount + 1
-    } else if (activity.activeTool) {
-      activity.activeToolCount = 1
+    this.update()
+  }
+
+  ensureTimer() {
+    if (!this.widgetInterval) {
+      this.widgetInterval = setInterval(() => this.update(), 80)
     }
-    Object.assign(existing, activity, { lastActivityAt: Date.now() })
-    this.activities.set(agentId, existing)
-    this.invalidated = true
-    this.ui?.requestRender()
   }
 
-  removeAgent(agentId: string): void {
-    this.records.delete(agentId)
-    this.activities.delete(agentId)
-    this.invalidated = true
-    this.ui?.requestRender()
+  private shouldShowFinished(agentId: string, status: string): boolean {
+    const age = this.finishedTurnAge.get(agentId) ?? 0
+    const maxAge = ERROR_STATUSES.has(status) ? AgentWidget.ERROR_LINGER_TURNS : 1
+    return age < maxAge
   }
 
-  invalidate(): void {
-    this.invalidated = true
+  markFinished(agentId: string) {
+    if (!this.finishedTurnAge.has(agentId)) {
+      this.finishedTurnAge.set(agentId, 0)
+    }
   }
 
-  render(width: number): string[] {
-    const allRecords = [...this.records.values()]
-    const running = allRecords.filter(r => r.status === "running")
-    const queued = allRecords.filter(r => r.status === "queued")
-    const finished = allRecords.filter(
-      r => r.status !== "running" && r.status !== "queued",
-    ).slice(0, 3)
-
-    if (running.length === 0 && queued.length === 0 && finished.length === 0) return []
-
-    const t = this.theme
-    const lines: string[] = []
-    const frame = SPINNER_FRAMES[this.frameIndex]
-    const hasActive = running.length > 0
-
-    if (t) {
-      const headingColor = hasActive ? "accent" : "dim"
-      const headingIcon = hasActive ? "●" : "○"
-      lines.push(truncateToWidth(t.fg(headingColor, headingIcon) + " " + t.fg(headingColor, "Agents"), width))
+  private renderFinishedLine(a: AgentRecord, theme: Theme): string {
+    const name = a.type
+    const duration = formatDuration(a.startedAt, a.completedAt)
+    let icon: string
+    let statusText: string
+    if (a.status === "completed") {
+      icon = theme.fg("success", "✓")
+      statusText = ""
+    } else if (a.status === "steered") {
+      icon = theme.fg("warning", "✓")
+      statusText = theme.fg("warning", " (turn limit)")
+    } else if (a.status === "stopped") {
+      icon = theme.fg("dim", "■")
+      statusText = theme.fg("dim", " stopped")
+    } else if (a.status === "error") {
+      icon = theme.fg("error", "✗")
+      const errMsg = a.error ? `: ${a.error.slice(0, 60)}` : ""
+      statusText = theme.fg("error", ` error${errMsg}`)
     } else {
-      const headingIcon = hasActive ? "●" : "○"
-      lines.push(truncateToWidth(`${headingIcon} Agents`, width))
+      icon = theme.fg("error", "✗")
+      statusText = theme.fg("warning", " aborted")
+    }
+    const parts: string[] = []
+    const activity = this.agentActivity.get(a.id)
+    if (activity) parts.push(formatTurns(activity.turnCount, activity.maxTurns))
+    if (a.toolUses > 0) parts.push(`${a.toolUses} tool use${a.toolUses === 1 ? "" : "s"}`)
+    parts.push(duration)
+    return `${icon} ${theme.fg("dim", name)} ${theme.fg("dim", a.description.slice(0, 30))} ${theme.fg("dim", "·")} ${theme.fg("dim", parts.join(" · "))}${statusText}`
+  }
+
+  private renderWidget(tui: any, theme: Theme): string[] {
+    const allAgents = this.manager.listAgents()
+    const running = allAgents.filter(a => a.status === "running")
+    const queued = allAgents.filter(a => a.status === "queued")
+    const finished = allAgents.filter(a =>
+      a.status !== "running" && a.status !== "queued" && a.completedAt
+      && this.shouldShowFinished(a.id, a.status),
+    )
+
+    const hasActive = running.length > 0 || queued.length > 0
+    const hasFinished = finished.length > 0
+    if (!hasActive && !hasFinished) return []
+
+    const w = tui.terminal.columns
+    const truncate = (line: string) => truncateToWidth(line, w)
+    const headingColor = hasActive ? "accent" : "dim"
+    const headingIcon = hasActive ? "●" : "○"
+    const frame = SPINNER[this.widgetFrame % SPINNER.length]
+
+    const finishedLines: string[] = []
+    for (const a of finished) {
+      finishedLines.push(truncate(theme.fg("dim", "├─") + " " + this.renderFinishedLine(a, theme)))
     }
 
-    const entries: Array<{ type: "running" | "queued" | "finished"; record: AgentRecord }> = [
-      ...running.map(r => ({ type: "running" as const, record: r })),
-      ...queued.map(r => ({ type: "queued" as const, record: r })),
-      ...finished.map(r => ({ type: "finished" as const, record: r })),
-    ]
-
-    const visible = entries.slice(0, this.maxVisible)
-    const hidden = entries.length - visible.length
-
-    for (let i = 0; i < visible.length; i++) {
-      const isLast = i === visible.length - 1 && hidden === 0
-      const connector = isLast ? "└─" : "├─"
-      const { type, record } = visible[i]
-
-      if (type === "running") {
-        lines.push(...this.renderRunningLine(record, frame, connector, width))
-      } else if (type === "queued") {
-        lines.push(this.renderQueuedLine(connector, width))
-      } else {
-        lines.push(this.renderFinishedLine(record, connector, width))
-      }
-    }
-
-    if (hidden > 0) {
-      const hiddenRunning = entries.slice(this.maxVisible).filter(e => e.type === "running").length
-      const hiddenFinished = entries.slice(this.maxVisible).filter(e => e.type === "finished").length
+    const runningLines: string[][] = []
+    for (const a of running) {
+      const name = a.type
+      const elapsed = formatDuration(a.startedAt)
+      const bg = this.agentActivity.get(a.id)
+      const toolUses = bg?.toolUses ?? a.toolUses
+      const tokens = getLifetimeTotal(bg?.lifetimeUsage)
+      const contextPercent = getSessionContextPercent(bg?.session)
+      const tokenText = tokens > 0 ? formatSessionTokens(tokens, contextPercent, theme, a.compactionCount) : ""
       const parts: string[] = []
-      if (hiddenRunning > 0) parts.push(`${hiddenRunning} running`)
-      if (hiddenFinished > 0) parts.push(`${hiddenFinished} finished`)
-      const overflowText = parts.join(", ")
-      if (t) {
-        lines.push(truncateToWidth(t.fg("dim", "└─") + " " + t.fg("dim", `+${hidden} more (${overflowText})`), width))
-      } else {
-        lines.push(truncateToWidth(`└─ +${hidden} more (${overflowText})`, width))
+      if (bg) parts.push(formatTurns(bg.turnCount, bg.maxTurns))
+      if (toolUses > 0) parts.push(`${toolUses} tool use${toolUses === 1 ? "" : "s"}`)
+      if (tokenText) parts.push(tokenText)
+      parts.push(elapsed)
+      const statsText = parts.join(" · ")
+      const activity = bg ? describeActivity(bg.activeTools, bg.responseText) : "thinking…"
+
+      runningLines.push([
+        truncate(theme.fg("dim", "├─") + ` ${theme.fg("accent", frame)} ${theme.bold(name)} ${theme.fg("muted", a.description.slice(0, 30))} ${theme.fg("dim", "·")} ${theme.fg("dim", statsText)}`),
+        truncate(theme.fg("dim", "│ ") + theme.fg("dim", ` ⎿ ${activity}`)),
+      ])
+    }
+
+    const queuedLine = queued.length > 0
+      ? truncate(theme.fg("dim", "├─") + ` ${theme.fg("muted", "◦")} ${theme.fg("dim", `${queued.length} queued`)}`)
+      : undefined
+
+    const maxBody = MAX_WIDGET_LINES - 1
+    const totalBody = finishedLines.length + runningLines.length * 2 + (queuedLine ? 1 : 0)
+    const lines: string[] = [truncate(theme.fg(headingColor, headingIcon) + " " + theme.fg(headingColor, "Agents"))]
+
+    if (totalBody <= maxBody) {
+      lines.push(...finishedLines)
+      for (const pair of runningLines) lines.push(...pair)
+      if (queuedLine) lines.push(queuedLine)
+
+      if (lines.length > 1) {
+        const last = lines.length - 1
+        lines[last] = lines[last].replace("├─", "└─")
+        if (runningLines.length > 0 && !queuedLine) {
+          if (last >= 2) {
+            lines[last - 1] = lines[last - 1].replace("├─", "└─")
+            lines[last] = lines[last].replace("│ ", "  ")
+          }
+        }
       }
+    } else {
+      let budget = maxBody - 1
+      let hiddenRunning = 0
+      let hiddenFinished = 0
+
+      for (const pair of runningLines) {
+        if (budget >= 2) {
+          lines.push(...pair)
+          budget -= 2
+        } else {
+          hiddenRunning++
+        }
+      }
+      if (queuedLine && budget >= 1) {
+        lines.push(queuedLine)
+        budget--
+      }
+      for (const fl of finishedLines) {
+        if (budget >= 1) {
+          lines.push(fl)
+          budget--
+        } else {
+          hiddenFinished++
+        }
+      }
+      const overflowParts: string[] = []
+      if (hiddenRunning > 0) overflowParts.push(`${hiddenRunning} running`)
+      if (hiddenFinished > 0) overflowParts.push(`${hiddenFinished} finished`)
+      const overflowText = overflowParts.join(", ")
+      lines.push(truncate(theme.fg("dim", "└─") + ` ${theme.fg("dim", `+${hiddenRunning + hiddenFinished} more (${overflowText})`)}`))
     }
 
     return lines
   }
 
-  private renderRunningLine(record: AgentRecord, frame: string, connector: string, width: number): string[] {
-    const t = this.theme
-    const activity = this.activities.get(record.id)
-    const name = record.type
-    const desc = record.description.slice(0, 30)
+  update() {
+    if (!this.uiCtx) return
+    const allAgents = this.manager.listAgents()
 
-    const statsParts: string[] = []
-    if (activity) {
-      statsParts.push(formatTurns(activity.turnCount, record.invocation?.maxTurns))
+    let runningCount = 0
+    let queuedCount = 0
+    let hasFinished = false
+    for (const a of allAgents) {
+      if (a.status === "running") { runningCount++ }
+      else if (a.status === "queued") { queuedCount++ }
+      else if (a.completedAt && this.shouldShowFinished(a.id, a.status)) { hasFinished = true }
     }
-    statsParts.push(`${record.toolUses} tool ${record.toolUses === 1 ? "use" : "uses"}`)
-    const tokens = getLifetimeTotal(record.lifetimeUsage)
-    if (tokens > 0) {
-      const contextPct = getSessionContextPercent(record.session)
-      const tokenStr = formatTokens(tokens)
-      const ctxStr = contextPct !== null ? ` (${Math.round(contextPct)}%)` : ""
-      statsParts.push(`${tokenStr}${ctxStr}`)
-    }
-    statsParts.push(formatDuration(record.startedAt))
-    const statsText = statsParts.join(" · ")
+    const hasActive = runningCount > 0 || queuedCount > 0
 
-    const actText = describeActivity(activity)
-
-    if (t) {
-      const line1 = truncateToWidth(
-        t.fg("dim", connector) + " " +
-        t.fg("accent", frame) + " " +
-        t.bold(name) + "  " +
-        t.fg("muted", desc) + " " +
-        t.fg("dim", "·") + " " +
-        t.fg("dim", statsText),
-        width,
-      )
-      const line2 = truncateToWidth(
-        t.fg("dim", "│  ") + t.fg("dim", `  ⎿  ${actText}`),
-        width,
-      )
-      return [line1, line2]
+    if (!hasActive && !hasFinished) {
+      if (this.widgetRegistered) {
+        this.uiCtx.setWidget("agents", undefined)
+        this.widgetRegistered = false
+        this.tui = undefined
+      }
+      if (this.widgetInterval) { clearInterval(this.widgetInterval); this.widgetInterval = undefined }
+      for (const [id] of this.finishedTurnAge) {
+        if (!allAgents.some(a => a.id === id)) this.finishedTurnAge.delete(id)
+      }
+      return
     }
 
-    const line1 = truncateToWidth(`${connector} ${frame} ${name}  ${desc} · ${statsText}`, width)
-    const line2 = truncateToWidth(`│    ⎿  ${actText}`, width)
-    return [line1, line2]
+    this.widgetFrame++
+
+    if (!this.widgetRegistered) {
+      this.uiCtx.setWidget("agents", (tui, theme) => {
+        this.tui = tui
+        return {
+          render: () => this.renderWidget(tui, theme),
+          invalidate: () => {
+            this.widgetRegistered = false
+            this.tui = undefined
+          },
+        }
+      }, { placement: "aboveEditor" })
+      this.widgetRegistered = true
+    } else {
+      this.tui?.requestRender()
+    }
   }
 
-  private renderQueuedLine(connector: string, width: number): string {
-    const t = this.theme
-    if (t) {
-      return truncateToWidth(t.fg("dim", connector) + " " + t.fg("muted", "◦") + " " + t.fg("dim", "queued"), width)
+  dispose() {
+    if (this.widgetInterval) {
+      clearInterval(this.widgetInterval)
+      this.widgetInterval = undefined
     }
-    return truncateToWidth(`${connector} ◦ queued`, width)
-  }
-
-  private renderFinishedLine(record: AgentRecord, connector: string, width: number): string {
-    const t = this.theme
-    const name = record.type
-    const desc = record.description.slice(0, 30)
-
-    const icon = record.status === "completed" ? "✓" : record.status === "error" ? "✗" : "■"
-    const statsParts: string[] = []
-    const activity = this.activities.get(record.id)
-    if (activity) {
-      statsParts.push(formatTurns(activity.turnCount))
+    if (this.uiCtx) {
+      this.uiCtx.setWidget("agents", undefined)
     }
-    statsParts.push(`${record.toolUses} tool ${record.toolUses === 1 ? "use" : "uses"}`)
-    const tokens = getLifetimeTotal(record.lifetimeUsage)
-    if (tokens > 0) statsParts.push(formatTokens(tokens))
-    statsParts.push(formatDuration(record.startedAt, record.completedAt))
-    const statsText = statsParts.join(" · ")
-
-    if (t) {
-      const iconColored = record.status === "completed"
-        ? t.fg("success", icon)
-        : record.status === "error"
-          ? t.fg("error", icon)
-          : t.fg("dim", icon)
-      const line = truncateToWidth(
-        t.fg("dim", connector) + " " +
-        iconColored + " " +
-        t.fg("dim", name) + "  " +
-        t.fg("dim", desc) + " " +
-        t.fg("dim", "·") + " " +
-        t.fg("dim", statsText),
-        width,
-      )
-      return line
-    }
-
-    return truncateToWidth(`${connector} ${icon} ${name}  ${desc} · ${statsText}`, width)
-  }
-
-  dispose(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId)
-      this.intervalId = undefined
-    }
+    this.widgetRegistered = false
+    this.tui = undefined
   }
 }
 
-export function createWidgetUpdater(widget: AgentWidget, record: AgentRecord) {
+export function createActivityTracker(
+  widget: AgentWidget,
+  agentActivity: Map<string, AgentActivity>,
+  record: AgentRecord,
+) {
+  const activity: AgentActivity = {
+    activeTools: new Map(),
+    toolUses: 0,
+    responseText: "",
+    turnCount: 0,
+    lifetimeUsage: { input: 0, output: 0, cacheWrite: 0 },
+  }
+  agentActivity.set(record.id, activity)
+
   return {
-    onToolActivity: (activity: ToolActivity) => {
-      widget.updateActivity(record.id, {
-        activeTool: activity.type === "start" ? activity.toolName : null,
-        activeToolCount: activity.type === "start" ? 1 : 0,
-      })
+    onToolActivity: (act: ToolActivity) => {
+      if (act.type === "start") {
+        activity.activeTools.set(act.toolName, act.toolName)
+      } else {
+        for (const [k, v] of activity.activeTools) {
+          if (v === act.toolName) { activity.activeTools.delete(k); break }
+        }
+        activity.toolUses++
+      }
     },
     onTurnEnd: (turnCount: number) => {
-      widget.updateActivity(record.id, { turnCount })
+      activity.turnCount = turnCount
     },
     onTextDelta: (_delta: string, fullText: string) => {
-      widget.updateActivity(record.id, { responseText: fullText.slice(-200) })
+      activity.responseText = fullText.slice(-200)
+    },
+    onAssistantUsage: (usage: { input: number; output: number; cacheWrite: number }) => {
+      activity.lifetimeUsage.input += usage.input
+      activity.lifetimeUsage.output += usage.output
+      activity.lifetimeUsage.cacheWrite += usage.cacheWrite
+    },
+    onSessionCreated: () => {
+      activity.session = record.session as any
     },
   }
 }

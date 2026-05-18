@@ -11,14 +11,15 @@ import {
   emitAgentStarted,
   emitReady,
 } from "./events.js"
-import { AgentWidget, createWidgetUpdater } from "./ui/agent-widget.js"
+import { AgentWidget, type AgentActivity } from "./ui/agent-widget.js"
 import { recordToNotification, formatTaskNotification, registerNotificationRenderer } from "./ui/notifications.js"
+import { ScheduleEngine } from "./schedule.js"
 import type { AgentRecord } from "./types.js"
 
 export default function initSubagents(pi: ExtensionAPI): void {
   registerAgents(new Map())
 
-  let widget: AgentWidget | undefined
+  const agentActivity = new Map<string, AgentActivity>()
 
   const manager = new AgentManager(
     (record) => {
@@ -28,7 +29,9 @@ export default function initSubagents(pi: ExtensionAPI): void {
         emitAgentCompleted(pi, record)
       }
 
-      widget?.updateAgent(record)
+      agentActivity.delete(record.id)
+      widget.markFinished(record.id)
+      widget.update()
 
       if (record.result && !record.resultConsumed) {
         const notification = formatTaskNotification(record)
@@ -44,48 +47,42 @@ export default function initSubagents(pi: ExtensionAPI): void {
     4,
     (record) => {
       emitAgentStarted(pi, record)
-      widget?.updateAgent(record)
+      widget.update()
     },
   )
 
+  const widget = new AgentWidget(manager, agentActivity)
+
+  const scheduler = new ScheduleEngine(process.cwd())
+
   registerNotificationRenderer(pi)
+
+  pi.on("tool_execution_start", async (_event, ctx) => {
+    if (ctx.hasUI) {
+      widget.setUICtx(ctx.ui as any)
+      widget.onTurnStart()
+    }
+  })
 
   pi.on("session_start", async (_event, ctx) => {
     manager.clearCompleted()
 
-    if (ctx.hasUI) {
-      widget = new AgentWidget()
-      ctx.ui.setWidget("subagents", (tui, theme) => {
-        widget!.bindTui(tui, theme)
-        return widget!
-      })
-      manager.setActivityHooks({
-        onToolActivity: (record, activity) => {
-          widget!.updateActivity(record.id, {
-            activeTool: activity.type === "start" ? activity.toolName : null,
-            activeToolCount: activity.type === "start" ? 1 : 0,
-          })
-        },
-        onTurnEnd: (record, turnCount) => {
-          widget!.updateActivity(record.id, { turnCount })
-        },
-        onTextDelta: (record, _delta, fullText) => {
-          widget!.updateActivity(record.id, { responseText: fullText.slice(-200) })
-        },
-      })
-    }
+    scheduler.bind(manager, pi)
+    scheduler.load()
+    scheduler.start()
 
     emitReady(pi)
   })
 
   pi.on("session_shutdown", async () => {
     manager.abortAll()
-    widget?.dispose()
-    widget = undefined
+    scheduler.dispose()
+    widget.dispose()
   })
 
-  registerAgentTool(pi, manager)
+  registerAgentTool(pi, manager, widget, agentActivity)
+
   registerGetResultTool(pi, manager)
   registerSteerTool(pi, manager)
-  registerAgentsCommand(pi, manager)
+  registerAgentsCommand(pi, manager, scheduler)
 }

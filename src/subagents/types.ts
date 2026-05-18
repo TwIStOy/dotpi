@@ -76,6 +76,33 @@ export interface AgentInvocation {
   isolation?: IsolationMode
 }
 
+export interface ScheduledSubagent {
+  id: string
+  name: string
+  description: string
+  schedule: string
+  scheduleType: "cron" | "once" | "interval"
+  intervalMs?: number
+  subagent_type: SubagentType
+  prompt: string
+  model?: string
+  thinking?: ThinkingLevel
+  max_turns?: number
+  isolated?: boolean
+  isolation?: IsolationMode
+  enabled: boolean
+  createdAt: string
+  lastRun?: string
+  lastStatus?: "success" | "error" | "running"
+  nextRun?: string
+  runCount: number
+}
+
+export interface ScheduleStoreData {
+  version: 1
+  jobs: ScheduledSubagent[]
+}
+
 export interface EnvInfo {
   isGitRepo: boolean
   branch: string
