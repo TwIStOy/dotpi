@@ -149,6 +149,40 @@ async execute(toolCallId, params, signal, onUpdate, ctx) {
 // In idle contexts (session events, commands, shortcuts), ctx.signal is usually undefined
 ```
 
+## pi-tui Utilities
+
+Import from `@mariozechner/pi-tui` (or `@earendil-works/pi-tui`):
+
+```typescript
+import {
+  truncateToWidth,
+  visibleWidth,
+  wrapTextWithAnsi,
+  matchesKey,
+  Component,
+  TUI,
+} from "@mariozechner/pi-tui";
+```
+
+| Export | Purpose |
+|---|---|
+| `truncateToWidth(text, width)` | Truncate string to terminal column width (handles CJK/emoji) |
+| `visibleWidth(text)` | Count visible terminal columns (ANSI-aware) |
+| `wrapTextWithAnsi(text, width)` | Word-wrap text to width, preserving ANSI escape codes |
+| `matchesKey(data, key)` | Match raw terminal input to key name ("escape", "up", "pageDown", "ctrl+c", etc.) |
+| `Component` | Interface for custom overlay components: `handleInput(data)`, `render(width) → string[]`, `invalidate()`, `dispose()` |
+| `TUI` | Terminal UI instance: `terminal.rows`, `terminal.columns`, `requestRender()` |
+
+**Component interface:**
+```typescript
+class MyOverlay implements Component {
+  handleInput(data: string): void { /* key handling */ }
+  render(width: number): string[] { /* return lines to display */ }
+  invalidate(): void { /* clear cached state */ }
+  dispose(): void { /* cleanup */ }
+}
+```
+
 ## Session Replacement Footguns
 
 - `withSession` runs after old session shutdown + teardown + new session rebind

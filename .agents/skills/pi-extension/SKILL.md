@@ -79,6 +79,11 @@ export default async function (pi: ExtensionAPI) {
 }
 ```
 
+## Package Namespaces
+
+The canonical packages are `@mariozechner/pi-coding-agent`, `@mariozechner/pi-ai`, and `@mariozechner/pi-tui`.
+A compatible fork exists at `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, `@earendil-works/pi-tui` — same APIs, different namespace. Remap imports when porting extensions between them.
+
 ## Key APIs
 
 ### Events (`pi.on`)
@@ -170,6 +175,86 @@ pi.on("before_agent_start", async (event, ctx) => {
 
 ### Override built-in tools
 Register a tool with the same name (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`) to override. Use `--no-builtin-tools` to start without built-in tools.
+
+### AgentSession API (subagent pattern)
+
+Create isolated agent sessions that run independently — used for subagent systems, background tasks, and parallel execution.
+
+```typescript
+import {
+  createAgentSession,
+  DefaultResourceLoader,
+  SessionManager,
+  SettingsManager,
+  getAgentDir,
+  parseFrontmatter,
+} from "@mariozechner/pi-coding-agent";
+
+const agentDir = getAgentDir();
+const loader = new DefaultResourceLoader({
+  cwd: ctx.cwd,
+  agentDir,
+  noExtensions: false,
+  noSkills: false,
+  noPromptTemplates: true,
+  noThemes: true,
+  noContextFiles: true,
+  systemPromptOverride: () => "Custom system prompt",
+  appendSystemPromptOverride: () => [],
+});
+await loader.reload();
+
+const { session } = await createAgentSession({
+  cwd: ctx.cwd,
+  agentDir,
+  sessionManager: SessionManager.inMemory(ctx.cwd),
+  settingsManager: SettingsManager.create(ctx.cwd, agentDir),
+  modelRegistry: ctx.modelRegistry,
+  model: ctx.model,
+  tools: ["read", "bash", "grep", "find", "ls"],
+  resourceLoader: loader,
+});
+
+session.setSessionName("my-agent");
+session.setActiveToolsByName(session.getActiveToolNames().filter(t => t !== "dangerous-tool"));
+await session.bindExtensions({ onError: (err) => console.error(err) });
+
+const unsub = session.subscribe((event) => {
+  if (event.type === "turn_end") { /* turn completed */ }
+  if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+    /* streaming text: event.assistantMessageEvent.delta */
+  }
+});
+
+await session.prompt("Do the task");
+unsub();
+session.dispose();
+```
+
+**AgentSession methods:**
+
+| Method | Purpose |
+|---|---|
+| `subscribe(handler)` → unsub | Listen to session events |
+| `prompt(text)` | Send message and run to completion |
+| `steer(message)` | Inject mid-run message (interrupts after current tool) |
+| `abort()` | Hard stop |
+| `setSessionName(name)` | Set display name |
+| `getActiveToolNames()` → `string[]` | List available tools |
+| `setActiveToolsByName(names)` | Filter available tools |
+| `bindExtensions(opts?)` | Initialize extensions in session |
+| `messages` | Conversation history array |
+| `getSessionStats()` → `{ tokens, contextUsage }` | Token usage and context info |
+| `dispose()` | Clean up session |
+
+**Utility exports:**
+
+| Export | Purpose |
+|---|---|
+| `getAgentDir()` | Default agent directory path (`~/.pi/agent/`) |
+| `parseFrontmatter<T>(content)` | Parse YAML frontmatter from markdown |
+| `SessionManager.inMemory(cwd)` | Create in-memory session manager |
+| `SettingsManager.create(cwd, agentDir)` | Create settings manager |
 
 ## Important Notes
 

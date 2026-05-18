@@ -86,6 +86,47 @@ exit:
   └── session_shutdown
 ```
 
+## AgentSession Events (subscription-based)
+
+These events are available via `session.subscribe(handler)` on `AgentSession` objects (created by `createAgentSession`). They are **separate** from the `pi.on()` extension events above — they fire within an isolated session's lifecycle.
+
+| Event | Key fields | Purpose |
+|---|---|---|
+| `message_start` | — | New message began |
+| `message_update` | `assistantMessageEvent.type === "text_delta"`, `delta` | Streaming text delta |
+| `message_end` | `message.role`, `message.usage` | Message completed |
+| `turn_end` | — | Agentic turn completed (LLM response + all tool calls) |
+| `tool_execution_start` | `toolName` | Tool began executing |
+| `tool_execution_end` | `toolName` | Tool finished executing |
+| `compaction_end` | `aborted`, `result.tokensBefore`, `reason` | Session compacted |
+
+**Usage pattern:**
+```typescript
+const unsub = session.subscribe((event) => {
+  switch (event.type) {
+    case "turn_end": turnCount++; break;
+    case "message_update":
+      if (event.assistantMessageEvent.type === "text_delta") {
+        text += event.assistantMessageEvent.delta;
+      }
+      break;
+    case "message_end":
+      if (event.message.role === "assistant") {
+        const u = event.message.usage; // { input, output, cacheWrite, cacheRead }
+      }
+      break;
+    case "compaction_end":
+      if (!event.aborted && event.result) {
+        // tokensBefore = pre-compaction context size
+      }
+      break;
+  }
+});
+// unsub() when done
+```
+
+**Note:** `message.usage` on `message_end` is per-message. Compaction replaces `session.messages` and resets cumulative stats — maintain your own lifetime accumulator via `message_end` events if you need totals that survive compaction.
+
 ## Input Processing Order
 
 1. Extension commands (`/cmd`) — if found, handler runs, input event skipped
