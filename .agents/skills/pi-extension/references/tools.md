@@ -40,7 +40,7 @@ pi.registerTool({
 
 ## Parameters Schema
 
-Use `typebox` (`Type` from `"typebox"`) for schema definitions. Use `StringEnum` from `@mariozechner/pi-ai` for string enums — `Type.Union`/`Type.Literal` is incompatible with Google's API.
+Use `typebox` (`Type` from `"typebox"`) for schema definitions. Use `StringEnum` from `@mariozechner/pi-ai` for string enums — `Type.Union`/`Type.Literal` is incompatible with Google's API. **Note:** `@earendil-works/pi-ai` does NOT export `StringEnum`; use `Type.Union`/`Type.Literal` when targeting that namespace.
 
 ```typescript
 import { Type } from "typebox";

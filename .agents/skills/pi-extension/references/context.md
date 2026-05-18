@@ -7,7 +7,7 @@
 | `ctx.ui` | object | UI methods (select, confirm, input, notify, custom) |
 | `ctx.hasUI` | boolean | `false` in print/JSON mode, `true` in interactive/RPC |
 | `ctx.cwd` | string | Current working directory |
-| `ctx.sessionManager` | object | Read-only session state access |
+| `ctx.sessionManager` | ReadonlySessionManager | Read-only session state (see below) |
 | `ctx.modelRegistry` | object | Model registry access |
 | `ctx.model` | object | Current model and API key access |
 | `ctx.signal` | AbortSignal \| undefined | Agent abort signal for cancellation |
@@ -18,6 +18,24 @@
 | `ctx.getContextUsage()` | function | Current context token usage |
 | `ctx.compact()` | function | Trigger compaction |
 | `ctx.getSystemPrompt()` | function | Get current system prompt string |
+
+### SessionManager Methods (read-only via ctx)
+
+| Method | Returns | Purpose |
+|---|---|---|
+| `getBranch(fromId?)` | `SessionEntry[]` | Conversation branch entries (messages + compactions) |
+| `getEntries()` | `SessionEntry[]` | All session entries |
+| `getTree()` | `SessionTreeNode[]` | Session tree structure |
+| `getEntry(id)` | `SessionEntry \| undefined` | Get specific entry by ID |
+| `getLeafId()` | `string \| null` | Current leaf entry ID |
+| `getLeafEntry()` | `SessionEntry \| undefined` | Current leaf entry |
+| `getLabel(id?)` | `string` | Entry label |
+| `getHeader()` | `SessionHeader` | Session metadata (id, cwd, timestamp) |
+| `getCwd()` | `string` | Session working directory |
+| `getSessionId()` | `string` | Session ID |
+| `getSessionName()` | `string` | Session display name |
+
+**SessionEntry tagged union:** `"message"` (has `.message: AgentMessage`) \| `"compaction"` (`.summary`, `.tokensBefore`) \| `"thinking_level_change"` \| `"model_change"` \| `"branch_summary"` \| `"custom"` (`.customType`)
 
 ## UI Methods (`ctx.ui`)
 
