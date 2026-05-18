@@ -274,6 +274,20 @@ session.dispose();
 - **Hot reload**: Extensions in auto-discovered locations reload with `/reload`.
 - **Testing**: `pi -e ./my-extension.ts` for quick testing.
 
+## TUI Widgets — Avoiding Terminal Corruption
+
+When building TUI widgets that display dynamic content (agent status, progress, etc.):
+
+1. **Use `setWidget` factory pattern, NOT Component mode** for widgets with frequently-changing content. Component's `render()` is called every TUI render cycle — if it produces different content each time (e.g., `Date.now()` for elapsed time), it causes differential renderer corruption when other output wraps lines.
+
+2. **Lazy UI context capture**: Get TUI context from `tool_execution_start` or similar late event, NOT `session_start`. TUI may not be fully initialized at session start.
+
+3. **Register factory ONCE**: Use a `widgetRegistered` flag. Subsequent updates only call `tui?.requestRender()`.
+
+4. **Controlled update cadence**: Drive updates with `setInterval` (e.g., 80ms). Auto-stop when no active content to display.
+
+5. **Why Component mode corrupts**: The TUI tracks `previousLines` for differential rendering. If widget `render()` changes content while agent output simultaneously changes line count (wrapping), line count mismatches cause cursor positioning errors → duplicated headings, phantom lines, doubled agents.
+
 ## References
 
 - [events.md](references/events.md) — Full event catalog and lifecycle flow
