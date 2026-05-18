@@ -25,6 +25,7 @@ import { detectEnv } from "./env.js"
 import { buildMemoryBlock, buildReadOnlyMemoryBlock } from "./memory.js"
 import { buildAgentPrompt, type PromptExtras } from "./prompts.js"
 import { preloadSkills, collectExtensionSkillRoots } from "./skill-loader.js"
+import { resolveBestModel } from "./model-resolver.js"
 import type { SubagentType, ThinkingLevel } from "./types.js"
 
 const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"]
@@ -188,7 +189,11 @@ export async function runAgent(
   })
   await loader.reload()
 
-  const model = options.model
+  let model = options.model
+  if (!model && agentConfig?.model) {
+    const candidates = Array.isArray(agentConfig.model) ? agentConfig.model : [agentConfig.model]
+    model = resolveBestModel(candidates, ctx.modelRegistry)
+  }
 
   const sessionOpts: Parameters<typeof createAgentSession>[0] = {
     cwd: effectiveCwd,

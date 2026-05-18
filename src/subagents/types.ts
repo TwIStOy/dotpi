@@ -20,7 +20,7 @@ export interface AgentConfig {
   disallowedTools?: string[]
   extensions: true | string[] | false
   skills: true | string[] | false
-  model?: string
+  model?: string | string[]
   thinking?: ThinkingLevel
   maxTurns?: number
   systemPrompt: string

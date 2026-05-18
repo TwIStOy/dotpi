@@ -25,7 +25,7 @@ export function resolveAgentInvocationConfig(
   isolation?: IsolationMode
 } & AgentInvocation {
   return {
-    modelInput: agentConfig?.model ?? params.model,
+    modelInput: typeof agentConfig?.model === "string" ? agentConfig.model : params.model,
     modelFromParams: agentConfig?.model == null && params.model != null,
     thinking: (agentConfig?.thinking ?? params.thinking) as ThinkingLevel | undefined,
     maxTurns: agentConfig?.maxTurns ?? params.max_turns,
@@ -33,6 +33,6 @@ export function resolveAgentInvocationConfig(
     runInBackground: agentConfig?.runInBackground ?? params.run_in_background ?? false,
     isolated: agentConfig?.isolated ?? params.isolated ?? false,
     isolation: agentConfig?.isolation ?? params.isolation,
-    modelName: agentConfig?.model ?? params.model,
+    modelName: typeof agentConfig?.model === "string" ? agentConfig.model : params.model,
   }
 }

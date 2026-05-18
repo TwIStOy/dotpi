@@ -70,3 +70,35 @@ export function resolveModel(
     .join("\n")
   return `Model not found: "${input}".\n\nAvailable models:\n${modelList}`
 }
+
+export function resolveBestModel(
+  candidates: string[],
+  registry: ModelRegistryLike,
+): Model<Api> | undefined {
+  const all = (registry.getAvailable?.() ?? registry.getAll())
+  if (all.length === 0) return undefined
+
+  let bestModel: Model<Api> | undefined
+  let bestScore = -1
+
+  for (const candidate of candidates) {
+    const resolved = resolveModel(candidate, registry)
+    if (typeof resolved === "string") continue
+
+    let score = -1
+    const query = candidate.toLowerCase()
+    const id = resolved.id.toLowerCase()
+    const full = `${resolved.provider}/${resolved.id}`.toLowerCase()
+
+    if (id === query || full === query) score = 100
+    else if (id.includes(query) || full.includes(query)) score = 60
+    else score = 20
+
+    if (score > bestScore) {
+      bestScore = score
+      bestModel = resolved
+    }
+  }
+
+  return bestModel
+}
