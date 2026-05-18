@@ -1,6 +1,6 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import registerZaiProvider from "./providers/zai.js";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
+import registerZai from "./providers/zai/index.js"
 
 export default function (pi: ExtensionAPI) {
-  registerZaiProvider(pi);
+  registerZai(pi)
 }

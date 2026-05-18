@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "type": "module",
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": [
+      "./src/index.ts"
+    ]
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "latest"
+  },
+  "dependencies": {
+    "temporal-polyfill": "^0.3.2"
   }
 }
