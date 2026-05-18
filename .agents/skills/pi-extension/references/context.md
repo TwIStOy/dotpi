@@ -43,7 +43,7 @@
 |---|---|---|
 | `notify` | `(message, level: "info"\|"warn"\|"error") => void` | Show notification |
 | `confirm` | `(title, message) => Promise<boolean>` | Yes/no confirmation |
-| `select` | `(title, options, multi?) => Promise<string[]>` | Selection dialog |
+| `select` | `(title, options, opts?) => Promise<string \| undefined>` | Selection dialog (returns selected option text or undefined if cancelled) |
 | `input` | `(message, default?) => Promise<string>` | Text input dialog |
 | `custom` | `(factory) => Promise<T>` | Full custom TUI component |
 | `setEditorComponent` | `(factory) => void` | Replace input editor |

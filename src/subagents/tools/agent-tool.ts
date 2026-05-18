@@ -1,6 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
 import { defineTool } from "@earendil-works/pi-coding-agent"
 import { Type } from "typebox"
+import { Text } from "@earendil-works/pi-tui"
 import { resolveType, getAgentConfig, getAvailableTypes, buildAgentListText } from "../agent-types.js"
 import { normalizeMaxTurns, getDefaultMaxTurns } from "../agent-runner.js"
 import { createOutputFilePath, writeInitialEntry, streamToOutputFile } from "../output-file.js"
@@ -10,6 +11,17 @@ import type { AgentManager } from "../agent-manager.js"
 import type { SubagentType } from "../types.js"
 import { formatMs } from "../formatting.js"
 import { formatLifetimeTokens, getStatusNote, textResult } from "./utils.js"
+
+export interface AgentDetails {
+  [key: string]: unknown
+  agentId: string
+  displayName: string
+  description: string
+  status: "foreground" | "background"
+  toolUses: number
+  tokens: string
+  durationMs: number
+}
 
 export function registerAgentTool(
   pi: ExtensionAPI,
@@ -60,6 +72,26 @@ Guidelines:
         description: 'Set to "worktree" to run in a temporary git worktree.',
       })),
     }),
+
+    renderResult(result: any, _options: any, theme: any, _context: any) {
+      const details = result.details as AgentDetails | undefined
+      if (!details) return new Text("", 0, 0)
+
+      if (details.status === "background") {
+        return new Text(theme.fg("dim", `  ⎿  Running in background (ID: ${details.agentId})`), 0, 0)
+      }
+
+      if (details.status === "foreground") {
+        const icon = theme.fg("success", "✓")
+        const statsParts: string[] = [`${details.toolUses} tool ${details.toolUses === 1 ? "use" : "uses"}`]
+        if (details.tokens) statsParts.push(details.tokens)
+        const duration = formatMs(details.durationMs)
+        const header = `${icon} ${theme.fg("dim", details.displayName)} ${theme.fg("dim", "·")} ${theme.fg("dim", statsParts.join(", "))} ${theme.fg("dim", duration)}`
+        return new Text(header, 0, 0)
+      }
+
+      return new Text("", 0, 0)
+    },
 
     execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
       const rawType = params.subagent_type as SubagentType
@@ -148,16 +180,27 @@ Guidelines:
         })
 
         const isQueued = record?.status === "queued"
+        const displayName = customConfig?.displayName ?? subagentType
+        const details: AgentDetails = {
+          agentId: id,
+          displayName,
+          description: params.description,
+          status: "background",
+          toolUses: 0,
+          tokens: "",
+          durationMs: 0,
+        }
         return textResult(
           `Agent ${isQueued ? "queued" : "started"} in background.\n` +
           `Agent ID: ${id}\n` +
-          `Type: ${subagentType}\n` +
+          `Type: ${displayName}\n` +
           `Description: ${params.description}\n` +
           (record?.outputFile ? `Output file: ${record.outputFile}\n` : "") +
           (isQueued ? `Position: queued (max ${manager.getMaxConcurrent()} concurrent)\n` : "") +
           `\nYou will be notified when this agent completes.\n` +
           `Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n` +
           `Do not duplicate this agent's work.`,
+          details,
         )
       }
 
@@ -198,9 +241,20 @@ Guidelines:
       const durationMs = (record.completedAt ?? Date.now()) - record.startedAt
       const statsParts = [`${record.toolUses} tool uses`]
       if (tokenText) statsParts.push(tokenText)
+      const displayName = customConfig?.displayName ?? subagentType
+      const details: AgentDetails = {
+        agentId: record.id,
+        displayName,
+        description: params.description,
+        status: "foreground",
+        toolUses: record.toolUses,
+        tokens: tokenText,
+        durationMs,
+      }
       return textResult(
         `${fallbackNote}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${getStatusNote(record.status)}.\n\n` +
         (record.result?.trim() || "No output."),
+        details,
       )
     },
   }))

@@ -9,6 +9,9 @@ import { cleanupWorktree, createWorktree, pruneWorktrees } from "./worktree.js"
 export type OnAgentComplete = (record: AgentRecord) => void
 export type OnAgentStart = (record: AgentRecord) => void
 export type OnAgentCompact = (record: AgentRecord, info: CompactionInfo) => void
+export type OnAgentActivity = (record: AgentRecord, activity: ToolActivity) => void
+export type OnAgentTurnEnd = (record: AgentRecord, turnCount: number) => void
+export type OnAgentTextDelta = (record: AgentRecord, delta: string, fullText: string) => void
 export type CompactionInfo = { reason: "manual" | "threshold" | "overflow"; tokensBefore: number }
 
 const DEFAULT_MAX_CONCURRENT = 4
@@ -47,6 +50,9 @@ export class AgentManager {
   private onComplete?: OnAgentComplete
   private onStart?: OnAgentStart
   private onCompact?: OnAgentCompact
+  private onToolActivity?: OnAgentActivity
+  private onTurnEndHook?: OnAgentTurnEnd
+  private onTextDeltaHook?: OnAgentTextDelta
   private maxConcurrent: number
   private queue: { id: string; args: SpawnArgs }[] = []
   private runningBackground = 0
@@ -72,6 +78,16 @@ export class AgentManager {
 
   getMaxConcurrent(): number {
     return this.maxConcurrent
+  }
+
+  setActivityHooks(hooks: {
+    onToolActivity?: OnAgentActivity
+    onTurnEnd?: OnAgentTurnEnd
+    onTextDelta?: OnAgentTextDelta
+  }): void {
+    this.onToolActivity = hooks.onToolActivity
+    this.onTurnEndHook = hooks.onTurnEnd
+    this.onTextDeltaHook = hooks.onTextDelta
   }
 
   spawn(
@@ -156,9 +172,16 @@ export class AgentManager {
       onToolActivity: activity => {
         if (activity.type === "end") record.toolUses++
         options.onToolActivity?.(activity)
+        this.onToolActivity?.(record, activity)
       },
-      onTurnEnd: options.onTurnEnd,
-      onTextDelta: options.onTextDelta,
+      onTurnEnd: turnCount => {
+        options.onTurnEnd?.(turnCount)
+        this.onTurnEndHook?.(record, turnCount)
+      },
+      onTextDelta: (delta, fullText) => {
+        options.onTextDelta?.(delta, fullText)
+        this.onTextDeltaHook?.(record, delta, fullText)
+      },
       onAssistantUsage: usage => {
         addUsage(record.lifetimeUsage, usage)
         options.onAssistantUsage?.(usage)

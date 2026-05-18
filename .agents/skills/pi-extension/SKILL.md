@@ -259,6 +259,8 @@ session.dispose();
 ## Important Notes
 
 - **`defineTool`**: Exported from `@mariozechner/pi-coding-agent`. Wraps a tool definition to add typed `renderCall`/`renderResult` support. Use: `pi.registerTool(defineTool({ ... }))`.
+- **`renderResult` must return `Component`**: Cannot return `undefined`. Use `new Text("", 0, 0)` as empty fallback. The `result.details` field carries UI-specific data separate from `result.content` (which the LLM sees).
+- **Two rendering pipelines**: Tool `renderResult` handles tool call/result TUI display. `registerMessageRenderer` handles `CustomMessage` entries (via `pi.sendMessage`). These are separate — tool results are NOT custom messages.
 - **`PackageSource`**: Settings type for npm/git packages. `type PackageSource = string | { source, extensions?, skills?, prompts?, themes? }`. Access via `ctx.settingsManager.getPackages()`.
 - **`resources_discover` event**: Extensions can return `{ skillPaths, promptPaths, themePaths }` to advertise additional resource directories.
 - **Security**: Extensions run with full system permissions. Only install from trusted sources.
