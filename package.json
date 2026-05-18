@@ -6,6 +6,6 @@
     "extensions": ["./src/index.ts"]
   },
   "devDependencies": {
-    "@mariozechner/pi-coding-agent": "latest"
+    "@earendil-works/pi-coding-agent": "latest"
   }
 }
