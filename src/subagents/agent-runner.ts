@@ -24,7 +24,7 @@ import { DEFAULT_AGENTS } from "./default-agents.js"
 import { detectEnv } from "./env.js"
 import { buildMemoryBlock, buildReadOnlyMemoryBlock } from "./memory.js"
 import { buildAgentPrompt, type PromptExtras } from "./prompts.js"
-import { preloadSkills } from "./skill-loader.js"
+import { preloadSkills, collectExtensionSkillRoots } from "./skill-loader.js"
 import type { SubagentType, ThinkingLevel } from "./types.js"
 
 const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"]
@@ -130,7 +130,15 @@ export async function runAgent(
   const skills = options.isolated ? false : config.skills
 
   if (Array.isArray(skills)) {
-    const loaded = preloadSkills(skills, effectiveCwd)
+    const settings = (ctx as any).settingsManager
+    const extraRoots = settings
+      ? collectExtensionSkillRoots(
+          settings.getProjectSettings?.()?.extensions ?? [],
+          settings.getPackages?.() ?? [],
+          effectiveCwd,
+        )
+      : []
+    const loaded = preloadSkills(skills, effectiveCwd, extraRoots)
     if (loaded.length > 0) {
       extras.skillBlocks = loaded
     }

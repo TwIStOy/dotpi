@@ -1,0 +1,207 @@
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
+import { defineTool } from "@earendil-works/pi-coding-agent"
+import { Type } from "typebox"
+import { resolveType, getAgentConfig, getAvailableTypes, buildAgentListText } from "../agent-types.js"
+import { normalizeMaxTurns, getDefaultMaxTurns } from "../agent-runner.js"
+import { createOutputFilePath, writeInitialEntry, streamToOutputFile } from "../output-file.js"
+import { resolveAgentInvocationConfig } from "../invocation-config.js"
+import { resolveModel } from "../model-resolver.js"
+import type { AgentManager } from "../agent-manager.js"
+import type { SubagentType } from "../types.js"
+import { formatMs } from "../formatting.js"
+import { formatLifetimeTokens, getStatusNote, textResult } from "./utils.js"
+
+export function registerAgentTool(
+  pi: ExtensionAPI,
+  manager: AgentManager,
+) {
+  pi.registerTool(defineTool({
+    name: "Agent",
+    label: "Agent",
+    description: `Launch a new agent to handle complex, multi-step tasks autonomously.
+
+The Agent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
+
+Available agents:
+${buildAgentListText()}
+
+Guidelines:
+- For parallel work, use run_in_background: true on each agent. Foreground calls run sequentially.
+- Provide clear, detailed prompts so the agent can work autonomously.
+- Use run_in_background for work you don't need immediately.
+- Use resume with an agent ID to continue a previous agent's work.
+- Use steer_subagent to send mid-run messages to a running background agent.`,
+    parameters: Type.Object({
+      prompt: Type.String({ description: "The task for the agent to perform." }),
+      description: Type.String({ description: "A short (3-5 word) description of the task (shown in UI)." }),
+      subagent_type: Type.String({
+        description: `The type of specialized agent to use. Available types: ${getAvailableTypes().join(", ")}.`,
+      }),
+      model: Type.Optional(Type.String({
+        description: 'Optional model override. Accepts "provider/modelId" or fuzzy name (e.g. "haiku", "sonnet").',
+      })),
+      thinking: Type.Optional(Type.String({
+        description: "Thinking level: off, minimal, low, medium, high, xhigh. Overrides agent default.",
+      })),
+      max_turns: Type.Optional(Type.Number({ description: "Maximum number of agentic turns before stopping.", minimum: 1 })),
+      run_in_background: Type.Optional(Type.Boolean({
+        description: "Set to true to run in background. Returns agent ID immediately.",
+      })),
+      resume: Type.Optional(Type.String({
+        description: "Optional agent ID to resume from. Continues from previous context.",
+      })),
+      isolated: Type.Optional(Type.Boolean({
+        description: "If true, agent gets no extension/MCP tools — only built-in tools.",
+      })),
+      inherit_context: Type.Optional(Type.Boolean({
+        description: "If true, fork parent conversation into the agent. Default: false.",
+      })),
+      isolation: Type.Optional(Type.Literal("worktree", {
+        description: 'Set to "worktree" to run in a temporary git worktree.',
+      })),
+    }),
+
+    execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
+      const rawType = params.subagent_type as SubagentType
+      const resolved = resolveType(rawType)
+      const subagentType = resolved ?? "general-purpose"
+      const fellBack = resolved === undefined
+      const customConfig = getAgentConfig(subagentType)
+      const resolvedConfig = resolveAgentInvocationConfig(customConfig, params)
+
+      let model = ctx.model
+      if (resolvedConfig.modelInput) {
+        const resolved = resolveModel(resolvedConfig.modelInput, ctx.modelRegistry)
+        if (typeof resolved === "string") {
+          if (resolvedConfig.modelFromParams) return textResult(resolved)
+        } else {
+          model = resolved
+        }
+      }
+
+      const thinking = resolvedConfig.thinking
+      const inheritContext = resolvedConfig.inheritContext
+      const runInBackground = resolvedConfig.runInBackground
+      const isolated = resolvedConfig.isolated
+      const isolation = resolvedConfig.isolation
+      const effectiveMaxTurns = normalizeMaxTurns(resolvedConfig.maxTurns ?? getDefaultMaxTurns())
+
+      const parentModelId = ctx.model?.id
+      const effectiveModelId = model?.id
+      const modelName = effectiveModelId && effectiveModelId !== parentModelId
+        ? (model?.name ?? effectiveModelId).replace(/^Claude\s+/i, "").toLowerCase()
+        : undefined
+
+      if (params.resume) {
+        const existing = manager.getRecord(params.resume)
+        if (!existing) {
+          return textResult(`Agent not found: "${params.resume}". It may have been cleaned up.`)
+        }
+        if (!existing.session) {
+          return textResult(`Agent "${params.resume}" has no active session to resume.`)
+        }
+        const record = await manager.resume(params.resume, params.prompt, signal)
+        if (!record) {
+          return textResult(`Failed to resume agent "${params.resume}".`)
+        }
+        return textResult(record.result?.trim() || record.error?.trim() || "No output.")
+      }
+
+      if (runInBackground) {
+        let id: string
+        try {
+          id = manager.spawn(pi, ctx, subagentType, params.prompt, {
+            description: params.description,
+            model,
+            maxTurns: effectiveMaxTurns,
+            isolated,
+            inheritContext,
+            thinkingLevel: thinking,
+            isBackground: true,
+            isolation,
+            invocation: {
+              modelName,
+              thinking,
+              maxTurns: normalizeMaxTurns(resolvedConfig.maxTurns),
+              isolated,
+              inheritContext,
+              runInBackground,
+              isolation,
+            },
+          })
+        } catch (err) {
+          return textResult(err instanceof Error ? err.message : String(err))
+        }
+
+        const record = manager.getRecord(id)
+        if (record) {
+          record.toolCallId = _toolCallId
+          record.outputFile = createOutputFilePath(ctx.cwd, id, ctx.sessionManager.getSessionId())
+          writeInitialEntry(record.outputFile, id, params.prompt, ctx.cwd)
+        }
+
+        pi.events.emit("subagents:created", {
+          id,
+          type: subagentType,
+          description: params.description,
+          isBackground: true,
+        })
+
+        const isQueued = record?.status === "queued"
+        return textResult(
+          `Agent ${isQueued ? "queued" : "started"} in background.\n` +
+          `Agent ID: ${id}\n` +
+          `Type: ${subagentType}\n` +
+          `Description: ${params.description}\n` +
+          (record?.outputFile ? `Output file: ${record.outputFile}\n` : "") +
+          (isQueued ? `Position: queued (max ${manager.getMaxConcurrent()} concurrent)\n` : "") +
+          `\nYou will be notified when this agent completes.\n` +
+          `Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n` +
+          `Do not duplicate this agent's work.`,
+        )
+      }
+
+      let record
+      try {
+        record = await manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {
+          description: params.description,
+          model,
+          maxTurns: effectiveMaxTurns,
+          isolated,
+          inheritContext,
+          thinkingLevel: thinking,
+          isolation,
+          invocation: {
+            modelName,
+            thinking,
+            maxTurns: normalizeMaxTurns(resolvedConfig.maxTurns),
+            isolated,
+            inheritContext,
+            runInBackground,
+            isolation,
+          },
+          signal,
+        })
+      } catch (err) {
+        return textResult(err instanceof Error ? err.message : String(err))
+      }
+
+      const tokenText = formatLifetimeTokens(record)
+      const fallbackNote = fellBack
+        ? `Note: Unknown agent type "${rawType}" — using general-purpose.\n\n`
+        : ""
+
+      if (record.status === "error") {
+        return textResult(`${fallbackNote}Agent failed: ${record.error}`)
+      }
+
+      const durationMs = (record.completedAt ?? Date.now()) - record.startedAt
+      const statsParts = [`${record.toolUses} tool uses`]
+      if (tokenText) statsParts.push(tokenText)
+      return textResult(
+        `${fallbackNote}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${getStatusNote(record.status)}.\n\n` +
+        (record.result?.trim() || "No output."),
+      )
+    },
+  }))
+}

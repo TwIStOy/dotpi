@@ -15,6 +15,7 @@ export interface AgentConfig {
   name: string
   displayName?: string
   description: string
+  trigger?: string
   builtinToolNames?: string[]
   disallowedTools?: string[]
   extensions: true | string[] | false

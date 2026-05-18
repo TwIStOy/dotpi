@@ -44,6 +44,13 @@ export function getAvailableTypes(): string[] {
     .map(([name]) => name)
 }
 
+export function buildAgentListText(): string {
+  return [...agents.entries()]
+    .filter(([_, config]) => config.enabled !== false)
+    .map(([name, config]) => `- ${name}: ${config.trigger ?? config.description}`)
+    .join("\n")
+}
+
 export function getAllTypes(): string[] {
   return [...agents.keys()]
 }
