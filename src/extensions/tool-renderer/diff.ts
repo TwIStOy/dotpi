@@ -1391,8 +1391,8 @@ export function attachDiffDetails(
   if (oldText === newText) return result;
   const diff = { ...buildStructuredDiff(oldText, newText), path };
   const extra = {
-    vstackDiff: diff,
-    vstackDiffWasNewFile: before === undefined,
+    diff: diff,
+    diffWasNewFile: before === undefined,
   };
   result.details =
     result?.details && typeof result.details === "object"

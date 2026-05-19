@@ -29,7 +29,7 @@ import {
   registerWrite,
 } from "./tools.js";
 
-const INSTALL_SYMBOL = Symbol.for("vstack.pi-tool-renderer.installed");
+const INSTALL_SYMBOL = Symbol.for("dotpi.tool-renderer.installed");
 
 export default async function toolRenderer(pi: ExtensionAPI): Promise<void> {
   const guard = pi as unknown as Record<PropertyKey, unknown>;

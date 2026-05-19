@@ -1,10 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-
-export const CONFIG_ID = "@vanillagreen/pi-tool-renderer";
-
-export type VstackConfig = Record<string, unknown>;
+import { homedir } from "node:os";
 
 function expandHome(input: string): string {
   if (input === "~") return homedir();
@@ -19,8 +15,7 @@ function projectSettingsPath(cwd: string): string {
     if (existsSync(candidate)) return candidate;
     if (
       existsSync(join(current, ".pi")) ||
-      existsSync(join(current, ".git")) ||
-      existsSync(join(current, ".vstack-lock.json"))
+      existsSync(join(current, ".git"))
     )
       return candidate;
     const parent = dirname(current);
@@ -36,17 +31,17 @@ function piSettingsPaths(cwd = process.cwd()): string[] {
   return [join(userDir, "settings.json"), projectSettingsPath(cwd)];
 }
 
-export function readVstackConfig(cwd?: string): VstackConfig {
-  const merged: VstackConfig = {};
+function readConfig(cwd?: string): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
   for (const path of piSettingsPaths(cwd)) {
     if (!existsSync(path)) continue;
     try {
       const parsed = JSON.parse(readFileSync(path, "utf8"));
-      const config = parsed?.vstack?.extensionManager?.config?.[CONFIG_ID];
+      const config = parsed?.toolRenderer;
       if (config && typeof config === "object" && !Array.isArray(config))
         Object.assign(merged, config);
     } catch {
-      // Ignore malformed optional manager config.
+      // Ignore malformed config.
     }
   }
   return merged;
@@ -57,7 +52,7 @@ export function settingNumber(
   fallback: number,
   cwd?: string,
 ): number {
-  const value = readVstackConfig(cwd)[key];
+  const value = readConfig(cwd)[key];
   const parsed =
     typeof value === "number"
       ? value
@@ -72,7 +67,7 @@ export function settingBoolean(
   fallback: boolean,
   cwd?: string,
 ): boolean {
-  const value = readVstackConfig(cwd)[key];
+  const value = readConfig(cwd)[key];
   return typeof value === "boolean" ? value : fallback;
 }
 
@@ -81,7 +76,7 @@ export function settingString(
   fallback: string,
   cwd?: string,
 ): string {
-  const value = readVstackConfig(cwd)[key];
+  const value = readConfig(cwd)[key];
   return typeof value === "string" ? value : fallback;
 }
 
@@ -91,7 +86,7 @@ export function settingEnum<T extends string>(
   fallback: T,
   cwd?: string,
 ): T {
-  const value = readVstackConfig(cwd)[key];
+  const value = readConfig(cwd)[key];
   return typeof value === "string" &&
     (allowed as readonly string[]).includes(value)
     ? (value as T)
@@ -109,7 +104,7 @@ export function stackToolCalls(cwd?: string): boolean {
 export type StackChildDisplay = "rows" | "headline" | "anchor-list";
 
 export function stackChildDisplay(cwd?: string): StackChildDisplay {
-  const value = readVstackConfig(cwd).stackChildDisplay;
+  const value = readConfig(cwd).stackChildDisplay;
   if (value === "rows" || value === "headline" || value === "anchor-list")
     return value;
   return settingBoolean("hideStackChildRows", false, cwd) ? "headline" : "rows";

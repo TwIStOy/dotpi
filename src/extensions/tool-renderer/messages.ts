@@ -29,25 +29,25 @@ import {
 import { makeTruncatedLines } from "./text.js";
 
 const USER_MESSAGE_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.user-message-patch",
+  "dotpi.tool-renderer.user-message-patch",
 );
 const USER_MESSAGE_BOX_STATE_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.user-message-box-state",
+  "dotpi.tool-renderer.user-message-box-state",
 );
 const ASSISTANT_MESSAGE_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.assistant-message-patch",
+  "dotpi.tool-renderer.assistant-message-patch",
 );
 const CUSTOM_MESSAGE_SPACING_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.custom-message-spacing-patch",
+  "dotpi.tool-renderer.custom-message-spacing-patch",
 );
 const COMPACTION_SUMMARY_RENDERER_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.compaction-summary-renderer-patch",
+  "dotpi.tool-renderer.compaction-summary-renderer-patch",
 );
 const SKILL_INVOCATION_RENDERER_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.skill-invocation-renderer-patch",
+  "dotpi.tool-renderer.skill-invocation-renderer-patch",
 );
 const MARKDOWN_CODE_BLOCK_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.markdown-code-block-patch",
+  "dotpi.tool-renderer.markdown-code-block-patch",
 );
 
 function renderUserMessageBorder(lines: string[], width: number): string[] {

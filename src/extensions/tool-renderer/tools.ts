@@ -95,11 +95,11 @@ function bashLiveTailState(context: any): BashLiveTailState {
   if (!state || typeof state !== "object") return {};
   const record = state as Record<string, unknown>;
   if (
-    !record.vstackBashLiveTail ||
-    typeof record.vstackBashLiveTail !== "object"
+    !record.bashLiveTail ||
+    typeof record.bashLiveTail !== "object"
   )
-    record.vstackBashLiveTail = {};
-  return record.vstackBashLiveTail as BashLiveTailState;
+    record.bashLiveTail = {};
+  return record.bashLiveTail as BashLiveTailState;
 }
 
 function markBashStarted(context: any): BashLiveTailState {
@@ -467,7 +467,7 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
       const call = `${toolLabel(theme, "Edit ")}${theme.fg("accent", targetPath)}`;
       if (isPartial) return renderPendingDetail("editing…", theme);
       clearBlink(context);
-      const structured = result?.details?.vstackDiff as
+      const structured = result?.details?.diff as
         | StructuredDiff
         | undefined;
       if (context?.isError || result?.isError) {
@@ -566,13 +566,13 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
       const args = context?.args ?? {};
       const targetPath = args.path ?? args.file_path ?? "";
       const lineTotal = lineCount(args.content ?? "");
-      const label = result?.details?.vstackDiffWasNewFile
+      const label = result?.details?.diffWasNewFile
         ? "Create "
         : "Write ";
       const call = `${toolLabel(theme, label)}${theme.fg("accent", targetPath)} ${theme.fg("dim", `· ${lineTotal} lines`)}`;
       if (isPartial) return renderPendingDetail("writing…", theme);
       clearBlink(context);
-      const structured = result?.details?.vstackDiff as
+      const structured = result?.details?.diff as
         | StructuredDiff
         | undefined;
       if (context?.isError || result?.isError) {

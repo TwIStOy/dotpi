@@ -387,8 +387,8 @@ function applyPatchResultSummary(
 }
 
 function applyPatchChangesFromContext(context: any): ApplyPatchChange[] {
-  if (Array.isArray(context?.state?._vstackApplyPatchChanges))
-    return context.state._vstackApplyPatchChanges as ApplyPatchChange[];
+  if (Array.isArray(context?.state?._applyPatchChanges))
+    return context.state._applyPatchChanges as ApplyPatchChange[];
   try {
     return parseApplyPatchPreview(patchTextFromArgs(context?.args ?? {}));
   } catch {
@@ -408,7 +408,7 @@ export function renderApplyPatchCall(
     try {
       changes = parseApplyPatchPreview(patchText);
       if (context?.argsComplete && context?.state)
-        context.state._vstackApplyPatchChanges = changes;
+        context.state._applyPatchChanges = changes;
     } catch {
       // Leave compact pending header only if patch cannot be parsed.
     }

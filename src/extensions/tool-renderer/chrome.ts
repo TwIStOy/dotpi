@@ -29,16 +29,16 @@ import { settingBoolean, settingEnum, toolChromeMode } from "./settings.js";
 import { subtleRule } from "./theme.js";
 
 const TOOL_EXECUTION_RENDERER_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.tool-execution-renderer-patch.v2",
+  "dotpi.tool-renderer.tool-execution-renderer-patch.v2",
 );
 const TOOL_CHROME_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.tool-chrome-patch",
+  "dotpi.tool-renderer.tool-chrome-patch",
 );
 const TOOL_CHROME_THEME_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.tool-chrome-theme",
+  "dotpi.tool-renderer.tool-chrome-theme",
 );
 const WORKING_LOADER_ALIGNMENT_PATCH_SYMBOL = Symbol.for(
-  "vstack.pi-tool-renderer.working-loader-alignment-patch",
+  "dotpi.tool-renderer.working-loader-alignment-patch",
 );
 
 export function rememberToolChromeTheme(component: any, theme: any): void {
