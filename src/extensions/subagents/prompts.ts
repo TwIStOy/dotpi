@@ -1,14 +1,14 @@
-import type { AgentConfig, EnvInfo } from "./types.js"
+import type { AgentConfig, EnvInfo } from "./types.js";
 
 export interface PromptExtras {
-  memoryBlock?: string
-  skillBlocks?: { name: string; content: string }[]
+  memoryBlock?: string;
+  skillBlocks?: { name: string; content: string }[];
 }
 
 const genericBase = `# Role
 You are a general-purpose coding agent for complex, multi-step tasks.
 You have full access to read, write, edit files, and execute commands.
-Do what has been asked; nothing more, nothing less.`
+Do what has been asked; nothing more, nothing less.`;
 
 export function buildAgentPrompt(
   config: AgentConfig,
@@ -17,26 +17,29 @@ export function buildAgentPrompt(
   parentSystemPrompt?: string,
   extras?: PromptExtras,
 ): string {
-  const activeAgentTag = `<active_agent name="${config.name}"/>\n\n`
+  const activeAgentTag = `<active_agent name="${config.name}"/>\n\n`;
 
   const envBlock = `# Environment
 Working directory: ${cwd}
 ${env.isGitRepo ? `Git repository: yes\nBranch: ${env.branch}` : "Not a git repository"}
-Platform: ${env.platform}`
+Platform: ${env.platform}`;
 
-  const extraSections: string[] = []
+  const extraSections: string[] = [];
   if (extras?.memoryBlock) {
-    extraSections.push(extras.memoryBlock)
+    extraSections.push(extras.memoryBlock);
   }
   if (extras?.skillBlocks?.length) {
     for (const skill of extras.skillBlocks) {
-      extraSections.push(`\n# Preloaded Skill: ${skill.name}\n${skill.content}`)
+      extraSections.push(
+        `\n# Preloaded Skill: ${skill.name}\n${skill.content}`,
+      );
     }
   }
-  const extrasSuffix = extraSections.length > 0 ? "\n\n" + extraSections.join("\n") : ""
+  const extrasSuffix =
+    extraSections.length > 0 ? "\n\n" + extraSections.join("\n") : "";
 
   if (config.promptMode === "append") {
-    const identity = parentSystemPrompt || genericBase
+    const identity = parentSystemPrompt || genericBase;
 
     const bridge = `<sub_agent_context>
 You are operating as a sub-agent invoked to handle a specific task.
@@ -49,19 +52,30 @@ You are operating as a sub-agent invoked to handle a specific task.
 - Use absolute file paths
 - Do not use emojis
 - Be concise but complete
-</sub_agent_context>`
+</sub_agent_context>`;
 
     const customSection = config.systemPrompt?.trim()
       ? `\n\n<agent_instructions>\n${config.systemPrompt}\n</agent_instructions>`
-      : ""
+      : "";
 
-    return activeAgentTag + envBlock + "\n\n<inherited_system_prompt>\n" + identity + "\n</inherited_system_prompt>\n\n" + bridge + customSection + extrasSuffix
+    return (
+      activeAgentTag +
+      envBlock +
+      "\n\n<inherited_system_prompt>\n" +
+      identity +
+      "\n</inherited_system_prompt>\n\n" +
+      bridge +
+      customSection +
+      extrasSuffix
+    );
   }
 
   const replaceHeader = `You are a pi coding agent sub-agent.
 You have been invoked to handle a specific task autonomously.
 
-${envBlock}`
+${envBlock}`;
 
-  return activeAgentTag + replaceHeader + "\n\n" + config.systemPrompt + extrasSuffix
+  return (
+    activeAgentTag + replaceHeader + "\n\n" + config.systemPrompt + extrasSuffix
+  );
 }

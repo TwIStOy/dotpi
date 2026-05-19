@@ -21,7 +21,7 @@ Before responding, enumerate in your head:
 - Am I about to skip a tool call because I "already know" the answer?
 
 Then ACTUALLY CALL those tools. Execute.
-</TOOL_CALL_MANDATE>`
+</TOOL_CALL_MANDATE>`;
 }
 
 function toolGuide(): string {
@@ -66,7 +66,7 @@ You have access to tools. This guide defines WHEN to call each one.
 - **Independent reads/searches**: ALWAYS call simultaneously in ONE response
 - **Dependent operations**: Call sequentially (Edit AFTER Read, Verify AFTER Edit)
 - **Background agents**: ALWAYS run in background, continue working
-</TOOL_GUIDE>`
+</TOOL_GUIDE>`;
 }
 
 function toolCallExamples(): string {
@@ -121,7 +121,7 @@ function toolCallExamples(): string {
 → STOP - wait for user to say "fix it"
 **WRONG**:
 → Start editing source files immediately ← "look into" ≠ "fix"
-</TOOL_CALL_EXAMPLES>`
+</TOOL_CALL_EXAMPLES>`;
 }
 
 function delegationOverride(): string {
@@ -138,7 +138,7 @@ You are an ORCHESTRATOR. When you implement code directly instead of delegating,
 → If NO (extremely rare): proceed, but this should happen less than 5% of the time
 
 **The user chose an orchestrator model specifically because they want delegation and parallel execution. If you do work yourself, you are failing your purpose.**
-</DELEGATION_OVERRIDE>`
+</DELEGATION_OVERRIDE>`;
 }
 
 function verificationOverride(): string {
@@ -162,7 +162,7 @@ Your internal confidence estimator is miscalibrated toward optimism. What feels 
 2. If tests exist, run them - ACTUALLY pass, not "they should pass"
 3. Read the output of every command - ACTUALLY read, not skim
 4. If you delegated, read EVERY file the subagent touched - not trust their claims
-</VERIFICATION_OVERRIDE>`
+</VERIFICATION_OVERRIDE>`;
 }
 
 function intentGateEnforcement(): string {
@@ -196,7 +196,7 @@ Where TYPE is one of: research | implementation | investigation | evaluation | f
 | "improve the tests" | Rewrite all tests | Assess current tests FIRST, propose approach, THEN implement |
 
 **IF YOU SKIPPED THE INTENT CLASSIFICATION ABOVE:** STOP. Go back. Do it now. Your next tool call is INVALID without it.
-</INTENT_GATE_ENFORCEMENT>`
+</INTENT_GATE_ENFORCEMENT>`;
 }
 
 export function buildGeminiPrompt(): string {
@@ -207,5 +207,5 @@ export function buildGeminiPrompt(): string {
     delegationOverride(),
     verificationOverride(),
     intentGateEnforcement(),
-  ].join("\n\n")
+  ].join("\n\n");
 }

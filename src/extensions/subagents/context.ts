@@ -1,33 +1,36 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent"
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export function extractText(content: unknown[]): string {
   return content
     .filter((c: any) => c.type === "text")
     .map((c: any) => c.text ?? "")
-    .join("\n")
+    .join("\n");
 }
 
 export function buildParentContext(ctx: ExtensionContext): string {
-  const entries = ctx.sessionManager.getBranch()
-  if (!entries || entries.length === 0) return ""
-  const parts: string[] = []
+  const entries = ctx.sessionManager.getBranch();
+  if (!entries || entries.length === 0) return "";
+  const parts: string[] = [];
   for (const entry of entries) {
     if (entry.type === "message") {
-      const msg = (entry as any).message
+      const msg = (entry as any).message;
       if (msg.role === "user") {
-        const text = typeof msg.content === "string" ? msg.content : extractText(msg.content)
-        if (text.trim()) parts.push(`[User]: ${text.trim()}`)
+        const text =
+          typeof msg.content === "string"
+            ? msg.content
+            : extractText(msg.content);
+        if (text.trim()) parts.push(`[User]: ${text.trim()}`);
       } else if (msg.role === "assistant") {
-        const text = extractText(msg.content)
-        if (text.trim()) parts.push(`[Assistant]: ${text.trim()}`)
+        const text = extractText(msg.content);
+        if (text.trim()) parts.push(`[Assistant]: ${text.trim()}`);
       }
     } else if (entry.type === "compaction") {
       if ((entry as any).summary) {
-        parts.push(`[Summary]: ${(entry as any).summary}`)
+        parts.push(`[Summary]: ${(entry as any).summary}`);
       }
     }
   }
-  if (parts.length === 0) return ""
+  if (parts.length === 0) return "";
   return `# Parent Conversation Context
 The following is the conversation history from the parent session that spawned you.
 Use this context to understand what has been discussed and decided so far.
@@ -36,5 +39,5 @@ ${parts.join("\n\n")}
 
 ---
 # Your Task (below)
-`
+`;
 }

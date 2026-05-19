@@ -1,5 +1,5 @@
-import type { AgentConfig } from "../types.js"
-import { READ_ONLY_TOOLS } from "./shared.js"
+import type { AgentConfig } from "../types.js";
+import { READ_ONLY_TOOLS } from "./shared.js";
 
 const oracle: AgentConfig = {
   name: "Oracle",
@@ -149,6 +149,6 @@ Before finalizing answers on architecture, security, or performance:
 Your response goes directly to the user with no intermediate processing. Make your final message self-contained: a clear recommendation they can act on immediately, covering both what to do and why.
 </delivery>`,
   promptMode: "replace",
-}
+};
 
-export default oracle
+export default oracle;

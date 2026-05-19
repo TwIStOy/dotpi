@@ -1,7 +1,10 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@earendil-works/pi-ai"
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  OAuthCredentials,
+  OAuthLoginCallbacks,
+} from "@earendil-works/pi-ai";
 
-const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
+const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4";
 
 export default function registerZaiProvider(pi: ExtensionAPI) {
   pi.registerProvider("zai", {
@@ -134,21 +137,23 @@ export default function registerZaiProvider(pi: ExtensionAPI) {
       async login(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
         const apiKey = await callbacks.onPrompt({
           message: "Enter your Z.AI API key (from https://z.ai/manage-apikey):",
-        })
+        });
         return {
           access: apiKey.trim(),
           refresh: "",
           expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
-        }
+        };
       },
 
-      async refreshToken(credentials: OAuthCredentials): Promise<OAuthCredentials> {
-        return credentials
+      async refreshToken(
+        credentials: OAuthCredentials,
+      ): Promise<OAuthCredentials> {
+        return credentials;
       },
 
       getApiKey(credentials: OAuthCredentials): string {
-        return credentials.access
+        return credentials.access;
       },
     },
-  })
+  });
 }

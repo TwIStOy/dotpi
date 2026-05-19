@@ -1,56 +1,69 @@
-import { CompactionSummaryMessageComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  CompactionSummaryMessageComponent,
+  type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
 
 import { registerToolBatch } from "./batch.js";
 import {
-	installToolChromePatch,
-	installToolExecutionRendererPatch,
-	installWorkingIndicator,
-	installWorkingLoaderAlignmentPatch,
-	registerToolChromeEvents,
+  installToolChromePatch,
+  installToolExecutionRendererPatch,
+  installWorkingIndicator,
+  installWorkingLoaderAlignmentPatch,
+  registerToolChromeEvents,
 } from "./chrome.js";
 import {
-	installAssistantMessageRenderer,
-	installCompactionSummaryRenderer,
-	installCustomMessageSpacingPatch,
-	installMarkdownCodeBlockRenderer,
-	installSkillInvocationRenderer,
-	installUserMessageRenderer,
+  installAssistantMessageRenderer,
+  installCompactionSummaryRenderer,
+  installCustomMessageSpacingPatch,
+  installMarkdownCodeBlockRenderer,
+  installSkillInvocationRenderer,
+  installUserMessageRenderer,
 } from "./messages.js";
 import { settingBoolean } from "./settings.js";
 import { registerStackEvents } from "./stack.js";
-import { registerBash, registerEdit, registerRead, registerReadOnly, registerWrite } from "./tools.js";
+import {
+  registerBash,
+  registerEdit,
+  registerRead,
+  registerReadOnly,
+  registerWrite,
+} from "./tools.js";
 
 const INSTALL_SYMBOL = Symbol.for("vstack.pi-tool-renderer.installed");
 
 export default async function toolRenderer(pi: ExtensionAPI): Promise<void> {
-	const guard = pi as unknown as Record<PropertyKey, unknown>;
-	if (guard[INSTALL_SYMBOL]) return;
-	guard[INSTALL_SYMBOL] = true;
-	if (!settingBoolean("enabled", true)) return;
+  const guard = pi as unknown as Record<PropertyKey, unknown>;
+  if (guard[INSTALL_SYMBOL]) return;
+  guard[INSTALL_SYMBOL] = true;
+  if (!settingBoolean("enabled", true)) return;
 
-	registerStackEvents(pi);
-	installToolExecutionRendererPatch(pi);
-	installToolChromePatch();
-	registerToolChromeEvents(pi);
-	installWorkingLoaderAlignmentPatch();
-	installWorkingIndicator(pi);
-	installMarkdownCodeBlockRenderer(pi);
-	installCompactionSummaryRenderer(pi, CompactionSummaryMessageComponent);
+  registerStackEvents(pi);
+  installToolExecutionRendererPatch(pi);
+  installToolChromePatch();
+  registerToolChromeEvents(pi);
+  installWorkingLoaderAlignmentPatch();
+  installWorkingIndicator(pi);
+  installMarkdownCodeBlockRenderer(pi);
+  installCompactionSummaryRenderer(pi, CompactionSummaryMessageComponent);
 
-	const agent = await import("@earendil-works/pi-coding-agent");
-	installUserMessageRenderer(pi, agent.UserMessageComponent);
-	installAssistantMessageRenderer(pi, agent.AssistantMessageComponent);
-	installCustomMessageSpacingPatch(pi, (agent as any).CustomMessageComponent);
-	installSkillInvocationRenderer(pi, (agent as any).SkillInvocationMessageComponent);
-	const cwd = process.cwd();
-	registerRead(pi, agent, cwd);
-	registerBash(pi, agent, cwd);
-	if (settingBoolean("renderMutationTools", false, cwd)) {
-		registerEdit(pi, agent, cwd);
-		registerWrite(pi, agent, cwd);
-	}
-	registerReadOnly(pi, agent, cwd, "grep");
-	registerReadOnly(pi, agent, cwd, "find");
-	registerReadOnly(pi, agent, cwd, "ls");
-	if (settingBoolean("registerBatchTool", true, cwd)) registerToolBatch(pi, agent, cwd);
+  const agent = await import("@earendil-works/pi-coding-agent");
+  installUserMessageRenderer(pi, agent.UserMessageComponent);
+  installAssistantMessageRenderer(pi, agent.AssistantMessageComponent);
+  installCustomMessageSpacingPatch(pi, (agent as any).CustomMessageComponent);
+  installSkillInvocationRenderer(
+    pi,
+    (agent as any).SkillInvocationMessageComponent,
+  );
+  const cwd = process.cwd();
+  registerRead(pi, agent, cwd);
+  registerBash(pi, agent, cwd);
+  if (settingBoolean("renderMutationTools", false, cwd)) {
+    registerEdit(pi, agent, cwd);
+    registerWrite(pi, agent, cwd);
+  }
+  registerReadOnly(pi, agent, cwd, "grep");
+  registerReadOnly(pi, agent, cwd, "find");
+  registerReadOnly(pi, agent, cwd, "ls");
+  if (settingBoolean("registerBatchTool", true, cwd))
+    registerToolBatch(pi, agent, cwd);
 }
