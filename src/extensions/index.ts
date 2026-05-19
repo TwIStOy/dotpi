@@ -4,5 +4,5 @@ import initToolRenderer from "./tool-renderer/index.js";
 
 export function initExtensions(pi: ExtensionAPI) {
   initSubagents(pi);
-  initToolRenderer(pi);
+  // initToolRenderer(pi);
 }
