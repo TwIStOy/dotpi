@@ -6,7 +6,7 @@
     "extensions": [
       "./src/index.ts"
     ],
-    "skills": "./skills"
+    "skills": ["./skills"]
   },
   "scripts": {
     "build": "tsc",
