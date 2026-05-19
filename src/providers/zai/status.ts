@@ -9,6 +9,23 @@ export type FetchUsageFn = (
   modelRegistry: Pick<PiModelRegistry, "getApiKeyForProvider">,
 ) => Promise<ZaiUsageData>;
 
+/** Latest Z.ai quota (TOKENS_LIMIT %), for compact statusline and similar UIs. */
+export interface ZaiUsageSnapshot {
+  percentage: number;
+  timeRemaining?: string;
+  fetchedAtMs: number;
+}
+
+let zaiUsageSnapshot: ZaiUsageSnapshot | null = null;
+
+export function getZaiUsageSnapshot(): ZaiUsageSnapshot | null {
+  return zaiUsageSnapshot;
+}
+
+function setZaiUsageSnapshot(data: ZaiUsageSnapshot | null): void {
+  zaiUsageSnapshot = data;
+}
+
 export class ZaiUsageCache {
   private lastUsage: ZaiUsageData | null = null;
   private lastFetchTime = 0;
@@ -18,6 +35,12 @@ export class ZaiUsageCache {
     ctx: PiExtensionContext,
     usageData: ZaiUsageData,
   ): void {
+    const now = Temporal.Now.instant().epochMilliseconds;
+    setZaiUsageSnapshot({
+      percentage: usageData.percentage,
+      timeRemaining: usageData.timeRemaining,
+      fetchedAtMs: now,
+    });
     const theme = ctx.ui.theme;
     const displayPercentage = Math.round(usageData.percentage * 10) / 10;
     let status =
@@ -57,6 +80,7 @@ export class ZaiUsageCache {
 
   clear(ctx: PiExtensionContext): void {
     ctx.ui.setStatus("zai-usage", undefined);
+    setZaiUsageSnapshot(null);
   }
 }
 
