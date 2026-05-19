@@ -11,7 +11,7 @@ import {
   type StackChildDisplay,
 } from "./settings.js";
 import {
-  stackPrefix,
+  toolLinePrefix,
   treeConnector,
   treeStem,
   type TreeBranch,
@@ -243,6 +243,7 @@ function stackBatchHeadline(
     .filter(Boolean) as StackItem[];
   const running = items.some((item) => item.status === "running");
   const done = items.filter((item) => item.status !== "running").length;
+  const hasError = items.some((item) => item.isError);
   const reads = items.filter((item) => item.toolName === "read").length;
   const shells = items.filter((item) => item.toolName === "bash").length;
   const searches = items.filter(
@@ -272,7 +273,8 @@ function stackBatchHeadline(
     childDisplay === "headline" && !expanded && items.length > 0
       ? theme.fg("dim", " · ctrl+o to expand")
       : "";
-  return `${stackPrefix(theme)}${sentence}${running ? "…" : ""}${progress}${expandHint}`;
+  const leadPrefix = toolLinePrefix(theme, hasError);
+  return `${leadPrefix}${sentence}${running ? "…" : ""}${progress}${expandHint}`;
 }
 
 function renderStackBatch(

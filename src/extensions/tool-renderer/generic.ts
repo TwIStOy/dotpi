@@ -9,7 +9,7 @@ import {
   type StructuredDiffLine,
 } from "./diff.js";
 import { mcpOutputMode, toolRendererSettings } from "./settings.js";
-import { stackPrefix, toolLabel, treeConnector, treeStem } from "./theme.js";
+import { toolLinePrefix, toolLabel, treeConnector, treeStem } from "./theme.js";
 import {
   clearBlink,
   clipLine,
@@ -443,18 +443,18 @@ export function renderApplyPatchResult(
   const changes = applyPatchChangesFromContext(context);
   const target = applyPatchSummaryTarget(changes, theme);
   const call = `${toolLabel(theme, applyPatchKindLabel(changes))}${target}`;
-  if (context?.isError) {
+  if (context?.isError || result?.isError) {
     const first = textContent(result).split(/\r?\n/)[0] || "apply_patch failed";
     return makeTruncatedLines(
-      `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${theme.fg("error", first)}`,
+      `${toolLinePrefix(theme, true)}${call}${theme.fg("dim", " · ")}${theme.fg("error", first)}`,
     );
   }
   if (changes.length === 0)
     return makeTruncatedLines(
-      `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${theme.fg("success", "applied")}`,
+      `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${theme.fg("success", "applied")}`,
     );
   const total = summarizeApplyPatchChanges(changes);
-  let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${applyPatchResultSummary(changes, total, theme)}`;
+  let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${applyPatchResultSummary(changes, total, theme)}`;
   const maxShown = expanded ? changes.length : Math.min(1, changes.length);
   const hidden = changes.length - maxShown;
   const rowLimit =
@@ -655,8 +655,9 @@ export function renderUnknownToolResult(
   clearBlink(context);
   const raw = textContent(result).trim();
   const args = context?.args ?? {};
-  const status = unknownToolStatus(name, raw, Boolean(context?.isError), theme);
-  let text = `${stackPrefix(theme)}${toolLabel(theme, `${humanizeToolName(name)} `)}${summarizeUnknownToolCall(name, args, theme)}${theme.fg("dim", " · ")}${status}`;
+  const errored = Boolean(context?.isError || result?.isError);
+  const status = unknownToolStatus(name, raw, errored, theme);
+  let text = `${toolLinePrefix(theme, errored)}${toolLabel(theme, `${humanizeToolName(name)} `)}${summarizeUnknownToolCall(name, args, theme)}${theme.fg("dim", " · ")}${status}`;
   if (!expanded)
     return makeTruncatedLines(
       `${text}${theme.fg("dim", " · ctrl+o to expand")}`,
@@ -666,7 +667,7 @@ export function renderUnknownToolResult(
   text += `\n${json.map((line) => `${treeStem(theme, raw ? "├" : "└")}${theme.fg("dim", clipLine(line))}`).join("\n")}`;
   if (raw) {
     const lines = raw.split(/\r?\n/);
-    text += `\n${treeConnector(theme, "└")}${theme.fg(context?.isError ? "error" : "muted", clipLine(lines[0] ?? raw))}`;
+    text += `\n${treeConnector(theme, "└")}${theme.fg(errored ? "error" : "muted", clipLine(lines[0] ?? raw))}`;
     for (const line of lines.slice(1, 8))
       text += `\n${treeStem(theme, "└")}${theme.fg("dim", clipLine(line))}`;
     if (lines.length > 8)

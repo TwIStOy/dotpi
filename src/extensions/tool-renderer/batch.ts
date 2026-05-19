@@ -8,7 +8,7 @@ import {
   type StackableToolName,
   type StackItem,
 } from "./stack.js";
-import { stackPrefix, toolLabel, treeConnector } from "./theme.js";
+import { stackPrefix, toolLinePrefix, toolLabel, treeConnector } from "./theme.js";
 import {
   lineCount,
   makeEmpty,
@@ -287,7 +287,7 @@ function renderToolBatchText(
   const failed = items.filter((item) => item.isError).length;
   const succeeded = items.length - failed;
   const header =
-    stackPrefix(theme) +
+    toolLinePrefix(theme, failed > 0) +
     toolLabel(theme, `Batch ${succeeded}/${items.length}`) +
     theme.fg(
       failed > 0 ? "warning" : "success",

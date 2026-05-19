@@ -24,7 +24,7 @@ import {
   stackToolCalls,
   toolRendererSettings,
 } from "./settings.js";
-import { stackPrefix, toolLabel, treeConnector } from "./theme.js";
+import { toolLinePrefix, toolLabel, treeConnector } from "./theme.js";
 import {
   bashCallText,
   clearBlink,
@@ -192,12 +192,20 @@ export function registerRead(pi: ExtensionAPI, agent: any, cwd: string): void {
       const call = readCallText(context?.args ?? {}, theme);
       if (isPartial) return renderPendingDetail("reading…", theme);
       clearBlink(context);
+      const errored = Boolean(context?.isError || result?.isError);
+      if (errored) {
+        const errorText =
+          textContent(result).split(/\r?\n/)[0] || "read failed";
+        return makeTruncatedLines(
+          `${toolLinePrefix(theme, true)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errorText)}`,
+        );
+      }
       const content = textContent(result);
       const count = lineCount(content);
       const summary = readResultSummary(result, context?.args ?? {}, theme);
       const mode = readOutputMode();
       if (mode === "hidden") return makeEmpty();
-      let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${summary}`;
+      let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       if (mode === "preview" && expanded && content) {
         const limit = Math.max(
           1,
@@ -285,6 +293,13 @@ export function registerBash(pi: ExtensionAPI, agent: any, cwd: string): void {
       }
       clearBlink(context);
       clearBashLiveTailTimer(liveTailState);
+      const errored = Boolean(context?.isError || result?.isError);
+      if (errored) {
+        const errLine = output.trim().split(/\r?\n/)[0] || "bash failed";
+        return makeTruncatedLines(
+          `${toolLinePrefix(theme, true)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errLine)}`,
+        );
+      }
       const exit = commandExit(output);
       const count = lineCount(output);
       const exitLabel = exit === null ? "exit 0" : `exit ${exit}`;
@@ -297,7 +312,7 @@ export function registerBash(pi: ExtensionAPI, agent: any, cwd: string): void {
         summary += theme.fg("warning", " · truncated");
       const mode = bashOutputMode();
       if (mode === "hidden") return makeEmpty();
-      let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${summary}`;
+      let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       const renderDiffs = shouldRenderBashDiffsForCommand(context?.args ?? {});
       const suppressDiffOutput = output
         ? suppressReadOnlyBashDiffOutput(context?.args ?? {}, output)
@@ -434,13 +449,13 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
         const errorText =
           textContent(result).split(/\r?\n/)[0] || "edit failed";
         return makeTruncatedLines(
-          `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errorText)}`,
+          `${toolLinePrefix(theme, true)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errorText)}`,
         );
       }
       const summary = structured
         ? diffSummary(structured, theme)
         : theme.fg("success", "applied");
-      let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${summary}`;
+      let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       if (structured)
         text += `\n${renderStructuredDiff(structured, theme, expanded, context?.cwd ?? cwd, undefined, targetPath)}`;
       return makeTruncatedLines(text);
@@ -534,13 +549,13 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
         const errorText =
           textContent(result).split(/\r?\n/)[0] || "write failed";
         return makeTruncatedLines(
-          `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errorText)}`,
+          `${toolLinePrefix(theme, true)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errorText)}`,
         );
       }
       const summary = structured
         ? diffSummary(structured, theme)
         : theme.fg("success", "written");
-      let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${summary}`;
+      let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       if (structured)
         text += `\n${renderStructuredDiff(structured, theme, expanded, context?.cwd ?? cwd, undefined, targetPath)}`;
       return makeTruncatedLines(text);
@@ -603,6 +618,14 @@ export function registerReadOnly(
       const call = readOnlyCallText(toolName, context?.args ?? {}, theme);
       if (isPartial) return renderPendingDetail(`${toolName}…`, theme);
       clearBlink(context);
+      const errored = Boolean(context?.isError || result?.isError);
+      if (errored) {
+        const errorText =
+          textContent(result).split(/\r?\n/)[0] || `${toolName} failed`;
+        return makeTruncatedLines(
+          `${toolLinePrefix(theme, true)}${call}${theme.fg("dim", " · ")}${theme.fg("error", errorText)}`,
+        );
+      }
       const output = textContent(result);
       const count = output.trim() ? lineCount(output) : 0;
       const label =
@@ -626,7 +649,7 @@ export function registerReadOnly(
         summary += theme.fg("warning", " · truncated");
       const mode = searchOutputMode();
       if (mode === "hidden") return makeEmpty();
-      let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${summary}`;
+      let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       if (mode === "preview" && expanded && output) {
         if (toolName === "find" || toolName === "ls") {
           text += `\n${renderPathListPreview(output, toolName, theme, expanded)}`;

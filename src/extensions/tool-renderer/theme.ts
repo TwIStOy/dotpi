@@ -89,3 +89,9 @@ export function toolLabel(theme: any, label: string): string {
 export function stackPrefix(theme: any): string {
   return theme.fg("accent", "● ");
 }
+
+/** Leading bullet for a completed tool line: error color when failed or blocked. */
+export function toolLinePrefix(theme: any, isError: boolean): string {
+  if (isError) return theme.fg("error", "● ");
+  return stackPrefix(theme);
+}
