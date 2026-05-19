@@ -6,7 +6,7 @@ import type { ToolActivity } from "../agent-runner.js"
 import type { AgentManager } from "../agent-manager.js"
 
 export interface AgentActivity {
-  activeTools: Map<string, string>
+  activeTools: Map<string, ActiveTool>
   toolUses: number
   responseText: string
   session?: { getSessionStats(): { tokens: { input: number; output: number; cacheWrite: number }; contextUsage?: { percent: number | null } } }
@@ -42,22 +42,47 @@ const TOOL_DISPLAY: Record<string, string> = {
   ls: "listing",
 }
 
-function describeActivity(activeTools: Map<string, string>, responseText?: string): string {
-  if (activeTools.size > 0) {
-    const groups = new Map<string, number>()
-    for (const toolName of activeTools.values()) {
-      const action = TOOL_DISPLAY[toolName] ?? toolName
-      groups.set(action, (groups.get(action) ?? 0) + 1)
-    }
-    const parts: string[] = []
-    for (const [action, count] of groups) {
-      if (count > 1) {
-        parts.push(`${action} ${count} ${action === "searching" ? "patterns" : "files"}`)
-      } else {
-        parts.push(action)
+function extractToolLabel(toolName: string, args: any): string {
+  if (!args || typeof args !== "object") return TOOL_DISPLAY[toolName] ?? toolName
+  switch (toolName) {
+    case "read":
+      return args.path ? `reading ${shortenPath(String(args.path))}` : "reading"
+    case "bash":
+      if (args.command) {
+        const cmd = String(args.command).split("\n")[0].trim()
+        return cmd.length > 50 ? `running ${cmd.slice(0, 50)}…` : `running ${cmd}`
       }
-    }
-    return parts.join(", ") + "…"
+      return "running command"
+    case "edit":
+      return args.path ? `editing ${shortenPath(String(args.path))}` : "editing"
+    case "write":
+      return args.path ? `writing ${shortenPath(String(args.path))}` : "writing"
+    case "grep":
+      return args.pattern ? `searching /${String(args.pattern).slice(0, 30)}/` : "searching"
+    case "find":
+      return args.pattern ? `finding *${String(args.pattern).slice(0, 30)}*` : "finding files"
+    case "ls":
+      return args.path ? `listing ${shortenPath(String(args.path))}` : "listing"
+    default:
+      return TOOL_DISPLAY[toolName] ?? toolName
+  }
+}
+
+function shortenPath(p: string): string {
+  const parts = p.split("/")
+  if (parts.length <= 3) return p
+  return "…/" + parts.slice(-2).join("/")
+}
+
+interface ActiveTool {
+  name: string
+  label: string
+}
+
+function describeActivity(activeTools: Map<string, ActiveTool>, responseText?: string): string {
+  if (activeTools.size > 0) {
+    const labels = [...activeTools.values()].map(t => t.label)
+    return labels.join(", ") + "…"
   }
   if (responseText && responseText.trim().length > 0) {
     const line = responseText.split("\n").find(l => l.trim())?.trim() ?? ""
@@ -339,10 +364,15 @@ export function createActivityTracker(
   return {
     onToolActivity: (act: ToolActivity) => {
       if (act.type === "start") {
-        activity.activeTools.set(act.toolName, act.toolName)
+        const label = extractToolLabel(act.toolName, act.args)
+        activity.activeTools.set(act.toolCallId ?? act.toolName, { name: act.toolName, label })
       } else {
-        for (const [k, v] of activity.activeTools) {
-          if (v === act.toolName) { activity.activeTools.delete(k); break }
+        if (act.toolCallId) {
+          activity.activeTools.delete(act.toolCallId)
+        } else {
+          for (const [k, v] of activity.activeTools) {
+            if (v.name === act.toolName) { activity.activeTools.delete(k); break }
+          }
         }
         activity.toolUses++
       }
