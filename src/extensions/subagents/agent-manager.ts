@@ -215,7 +215,7 @@ export class AgentManager {
         if (record.outputCleanup) {
           try {
             record.outputCleanup()
-          } catch {}
+          } catch { /* cleanup best-effort */ }
           record.outputCleanup = undefined
         }
 
@@ -233,7 +233,7 @@ export class AgentManager {
           this.runningBackground--
           try {
             this.onComplete?.(record)
-          } catch {}
+          } catch { /* subscriber error */ }
           this.drainQueue()
         }
         return responseText
@@ -250,7 +250,7 @@ export class AgentManager {
         if (record.outputCleanup) {
           try {
             record.outputCleanup()
-          } catch {}
+          } catch { /* cleanup best-effort */ }
           record.outputCleanup = undefined
         }
 
@@ -258,7 +258,7 @@ export class AgentManager {
           try {
             const wtResult = cleanupWorktree(ctx.cwd, record.worktree, options.description)
             record.worktreeResult = wtResult
-          } catch {}
+          } catch { /* cleanup best-effort */ }
         }
 
         if (options.isBackground) {
@@ -436,6 +436,6 @@ export class AgentManager {
     this.agents.clear()
     try {
       pruneWorktrees(process.cwd())
-    } catch {}
+    } catch { /* best-effort */ }
   }
 }

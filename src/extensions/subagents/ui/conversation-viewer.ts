@@ -32,7 +32,7 @@ export class ConversationViewer implements Component {
     }
 
     const footer = separator
-    const scrollInfo = this.lines.length > this.maxVisible
+    const _scrollInfo = this.lines.length > this.maxVisible
       ? ` [${this.scrollOffset + 1}-${Math.min(this.scrollOffset + this.maxVisible, this.lines.length)}/${this.lines.length}] ↑↓ scroll · Esc close`
       : " · Esc close"
 

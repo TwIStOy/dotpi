@@ -6,7 +6,7 @@ import {
 	stackChildDisplay,
 	type StackChildDisplay,
 } from "./settings.js";
-import { stackPrefix, toolLabel, treeConnector, treeStem, type TreeBranch } from "./theme.js";
+import { stackPrefix, treeConnector, treeStem, type TreeBranch } from "./theme.js";
 import {
 	commandExit,
 	joinPhrases,

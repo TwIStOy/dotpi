@@ -4,9 +4,8 @@ import { join } from "node:path"
 import type { AgentManager } from "../agent-manager.js"
 import {
   getAvailableTypes, getAgentConfig, getDefaultAgentNames,
-  getUserAgentNames, isValidType, registerAgents,
+  getUserAgentNames, registerAgents,
 } from "../agent-types.js"
-import { DEFAULT_AGENTS } from "../default-agents.js"
 import { formatDuration, formatTokens } from "../formatting.js"
 import { getLifetimeTotal } from "../usage.js"
 import type { AgentConfig, AgentRecord, ScheduledSubagent } from "../types.js"

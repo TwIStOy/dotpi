@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, rmSync } from "node:fs"
-import { join, basename } from "node:path"
+import { join } from "node:path"
 
 export interface WorktreeInfo {
   path: string
@@ -16,7 +16,7 @@ function git(args: string[], cwd: string): string {
   try {
     return execFileSync("git", args, { cwd, encoding: "utf-8", timeout: 30_000 }).trim()
   } catch (err: any) {
-    throw new Error(`git ${args.join(" ")} failed: ${err.message ?? err}`)
+    throw new Error(`git ${args.join(" ")} failed: ${err.message ?? err}`, { cause: err })
   }
 }
 
@@ -64,7 +64,7 @@ export function createWorktree(cwd: string, agentId: string): WorktreeInfo | nul
       const wtPath = match.replace("worktree ", "")
       return { path: wtPath, branch: branchName }
     }
-  } catch {}
+  } catch { /* no existing worktree */ }
 
   return null
 }
@@ -81,11 +81,11 @@ export function cleanupWorktree(cwd: string, worktree: WorktreeInfo, description
         git(["add", "-A"], worktree.path)
         const commitMsg = description.slice(0, 72) || "agent changes"
         git(["commit", "-m", commitMsg, "--no-gpg-sign"], worktree.path)
-      } catch {}
+      } catch { /* best-effort commit */ }
 
       result.branch = worktree.branch
     }
-  } catch {}
+  } catch { /* best-effort status check */ }
 
   try {
     git(["worktree", "remove", "--force", worktree.path], cwd)
@@ -95,7 +95,7 @@ export function cleanupWorktree(cwd: string, worktree: WorktreeInfo, description
         rmSync(worktree.path, { recursive: true, force: true })
       }
       git(["worktree", "prune"], cwd)
-    } catch {}
+    } catch { /* best-effort cleanup */ }
   }
 
   return result

@@ -1,7 +1,6 @@
 import {
 	assignHunkNumbers,
 	buildStructuredDiff,
-	countStructuredHunks,
 	diffSummary,
 	hiddenDiffLine,
 	renderStructuredDiff,

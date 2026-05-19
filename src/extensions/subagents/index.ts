@@ -15,7 +15,6 @@ import { AgentWidget, type AgentActivity } from "./ui/agent-widget.js"
 import { recordToNotification, formatTaskNotification, registerNotificationRenderer } from "./ui/notifications.js"
 import { ScheduleEngine } from "./schedule.js"
 import { loadCustomAgents, collectExtensionAgentDirs } from "./custom-agents.js"
-import type { AgentRecord } from "./types.js"
 
 export default function initSubagents(pi: ExtensionAPI): void {
   registerAgents(new Map())

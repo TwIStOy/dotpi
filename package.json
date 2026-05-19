@@ -8,12 +8,20 @@
     ]
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.75.1",
     "@earendil-works/pi-coding-agent": "latest",
-    "typescript": "^6.0.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.0",
+    "typescript-eslint": "^8.59.4"
   },
   "dependencies": {
     "croner": "^10.0.1",

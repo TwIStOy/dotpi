@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, openSyn
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import type { ScheduledSubagent, ScheduleStoreData } from "./types.js"
-import { isUnsafeName } from "./security.js"
 
 function encodeCwd(cwd: string): string {
   return cwd
@@ -91,12 +90,12 @@ export class ScheduleStore {
     if (this.fd !== null) {
       try {
         closeSync(this.fd)
-      } catch {}
+      } catch { /* best-effort close */ }
       this.fd = null
     }
     try {
       unlinkSync(lockPath(this.cwd))
-    } catch {}
+    } catch { /* best-effort cleanup */ }
   }
 
   getJobs(): ScheduledSubagent[] {

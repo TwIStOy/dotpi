@@ -1,4 +1,4 @@
-import { settingEnum, treeStyle } from "./settings.js";
+import { treeStyle } from "./settings.js";
 
 export const FALLBACK_THEME = {
 	bg(_token: string, text: string) {

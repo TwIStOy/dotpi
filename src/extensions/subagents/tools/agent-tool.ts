@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
 import { defineTool } from "@earendil-works/pi-coding-agent"
 import { Type } from "typebox"
 import { Text } from "@earendil-works/pi-tui"
@@ -235,7 +235,7 @@ Guidelines:
       let record
       try {
         const fgTracker = {
-          onSessionCreated: (session: any) => {},
+          onSessionCreated: (_session: any) => {},
         }
         record = await manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {
           description: params.description,

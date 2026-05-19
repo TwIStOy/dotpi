@@ -3,7 +3,7 @@ import { basename, extname } from "node:path";
 
 import { stableRenderWidth, stripAnsi } from "./ansi.js";
 import { pendingStatusAnimation, settingNumber, stackToolCalls } from "./settings.js";
-import { stackPrefix, toolLabel, treeConnector, type TreeBranch } from "./theme.js";
+import { stackPrefix, toolLabel, treeConnector } from "./theme.js";
 
 export class TruncatedLines {
 	private cachedLines?: string[];

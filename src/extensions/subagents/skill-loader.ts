@@ -105,13 +105,13 @@ function tryResolveSkillsFromPackageJson(dir: string): string | undefined {
     const piSkills = pkg?.pi?.skills
     if (typeof piSkills === "string") return resolve(dir, piSkills)
     if (Array.isArray(piSkills)) return resolve(dir, piSkills[0])
-  } catch {}
+  } catch { /* no package.json */ }
   return undefined
 }
 
 function tryStat(path: string): { isFile(): boolean; isDirectory(): boolean } | undefined {
   try {
-    return require("node:fs").statSync(path)
+    return require("node:fs").statSync(path) // eslint-disable-line @typescript-eslint/no-require-imports
   } catch {
     return undefined
   }

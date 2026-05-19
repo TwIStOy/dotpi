@@ -3,7 +3,6 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { AgentManager } from "./agent-manager.js"
 import { ScheduleStore } from "./schedule-store.js"
 import type { ScheduledSubagent } from "./types.js"
-import { emitAgentCompleted, emitAgentFailed } from "./events.js"
 
 interface ActiveTimer {
   type: "cron" | "timeout" | "interval"
@@ -65,7 +64,7 @@ export class ScheduleEngine {
       if (next) {
         this.store.updateJob(job.id, { nextRun: next.toISOString() })
       }
-    } catch (err) {
+    } catch (_err) {
       this.store.updateJob(job.id, { enabled: false })
     }
   }

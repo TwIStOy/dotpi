@@ -42,7 +42,7 @@ export function streamToOutputFile(
   agentId: string,
   cwd: string,
 ): () => void {
-  let writtenCount = 1
+  const writtenCount = 1
 
   const flush = () => {
     const messages = session.messages
@@ -63,8 +63,7 @@ export function streamToOutputFile(
       }
       try {
         appendFileSync(path, JSON.stringify(entry) + "\n", "utf-8")
-      } catch {}
-      writtenCount++
+      } catch { /* best-effort append */ }
     }
   }
 

@@ -1,5 +1,5 @@
 import { truncateToWidth } from "@earendil-works/pi-tui"
-import type { AgentRecord, SubagentType } from "../types.js"
+import type { AgentRecord } from "../types.js"
 import { formatDuration, formatTokens, formatTurns } from "../formatting.js"
 import { getLifetimeTotal, getSessionContextPercent } from "../usage.js"
 import type { ToolActivity } from "../agent-runner.js"

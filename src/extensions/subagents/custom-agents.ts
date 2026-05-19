@@ -161,7 +161,7 @@ function tryResolveAgentsFromPackageJson(dir: string): string | undefined {
     const piAgents = pkg?.pi?.agents
     if (typeof piAgents === "string") return resolve(dir, piAgents)
     if (Array.isArray(piAgents)) return resolve(dir, piAgents[0])
-  } catch {}
+  } catch { /* no package.json */ }
   return undefined
 }
 

@@ -2,18 +2,15 @@ import { getMarkdownTheme, keyText, type ExtensionAPI, type ExtensionContext } f
 import { Markdown, Text } from "@earendil-works/pi-tui";
 
 import {
-	ANSI_FG_RESET,
 	ansiGreen,
 	ansiPartsFromStyled,
 	ansiRed,
-	applyBaseTextFg,
 	isThinkingOnlyAssistantMessage,
 	stableRenderWidth,
 	trimOuterBlankLinesAroundRules,
 	trimThinkingOnlyAssistantLines,
 	stripAnsi,
 	trimTrailingBlankLines,
-	truncateAnsi,
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "./ansi.js";
@@ -29,7 +26,7 @@ const COMPACTION_SUMMARY_RENDERER_PATCH_SYMBOL = Symbol.for("vstack.pi-tool-rend
 const SKILL_INVOCATION_RENDERER_PATCH_SYMBOL = Symbol.for("vstack.pi-tool-renderer.skill-invocation-renderer-patch");
 const MARKDOWN_CODE_BLOCK_PATCH_SYMBOL = Symbol.for("vstack.pi-tool-renderer.markdown-code-block-patch");
 
-function renderUserMessageBorder(lines: string[], width: number, theme: any): string[] {
+function renderUserMessageBorder(lines: string[], width: number): string[] {
 	if (lines.length === 0 || width < 4) return lines;
 	const innerWidth = Math.max(1, width - 2);
 	const border = (text: string) => ansiGreen(text);
@@ -106,11 +103,10 @@ export function installUserMessageRenderer(pi: ExtensionAPI, UserMessageComponen
 				}
 
 				if (compact && width >= 4) {
-					const theme = ctx.ui?.theme ?? FALLBACK_THEME;
 					const frameWidth = stableRenderWidth(width, cwd);
 					const raw = state!.originalRender.call(this, Math.max(1, frameWidth - 2));
 					const lines = Array.isArray(raw) ? raw.flatMap((l: string) => l.split(/\r?\n/)) : [];
-					return appendUserMessageBreak(renderUserMessageBorder(lines, frameWidth, theme), width, cwd);
+					return appendUserMessageBreak(renderUserMessageBorder(lines, frameWidth), width, cwd);
 				}
 			}
 

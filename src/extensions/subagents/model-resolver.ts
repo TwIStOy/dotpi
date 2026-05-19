@@ -85,7 +85,7 @@ export function resolveBestModel(
     const resolved = resolveModel(candidate, registry)
     if (typeof resolved === "string") continue
 
-    let score = -1
+    let score: number
     const query = candidate.toLowerCase()
     const id = resolved.id.toLowerCase()
     const full = `${resolved.provider}/${resolved.id}`.toLowerCase()

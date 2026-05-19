@@ -1,6 +1,5 @@
 import type { ExtensionAPI, MessageRenderer } from "@earendil-works/pi-coding-agent"
-import type { Component } from "@earendil-works/pi-tui"
-import { truncateToWidth, wrapTextWithAnsi, Text } from "@earendil-works/pi-tui"
+import { Text } from "@earendil-works/pi-tui"
 import type { AgentRecord } from "../types.js"
 import { formatDuration, formatTokens } from "../formatting.js"
 import { getLifetimeTotal, getSessionContextPercent } from "../usage.js"

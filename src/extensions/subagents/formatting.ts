@@ -22,6 +22,6 @@ export function formatTurns(current: number, max?: number): string {
   return `⟳${current}`
 }
 
-export function getPromptModeLabel(type: string): string {
+export function getPromptModeLabel(_type: string): string {
   return ""
 }
