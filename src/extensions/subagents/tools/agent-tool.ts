@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { Text } from "@earendil-works/pi-tui";
 import {
   resolveType,
   getAgentConfig,
@@ -25,6 +24,7 @@ import {
   type AgentWidget,
   type AgentActivity,
 } from "../ui/agent-widget.js";
+import { makeEmpty } from "../../tool-renderer/text.js";
 
 export interface AgentDetails {
   [key: string]: unknown;
@@ -47,6 +47,7 @@ export function registerAgentTool(
     defineTool({
       name: "Agent",
       label: "Agent",
+      renderShell: "self",
       description: `Launch a new agent to handle complex, multi-step tasks autonomously.
 
 The Agent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
@@ -121,33 +122,12 @@ Guidelines:
         ),
       }),
 
-      renderResult(result: any, _options: any, theme: any, _context: any) {
-        const details = result.details as AgentDetails | undefined;
-        if (!details) return new Text("", 0, 0);
+      renderCall() {
+        return makeEmpty();
+      },
 
-        if (details.status === "background") {
-          return new Text(
-            theme.fg(
-              "dim",
-              `  ⎿  Running in background (ID: ${details.agentId})`,
-            ),
-            0,
-            0,
-          );
-        }
-
-        if (details.status === "foreground") {
-          const icon = theme.fg("success", "✓");
-          const statsParts: string[] = [
-            `${details.toolUses} tool ${details.toolUses === 1 ? "use" : "uses"}`,
-          ];
-          if (details.tokens) statsParts.push(details.tokens);
-          const duration = formatMs(details.durationMs);
-          const header = `${icon} ${theme.fg("dim", details.displayName)} ${theme.fg("dim", "·")} ${theme.fg("dim", statsParts.join(", "))} ${theme.fg("dim", duration)}`;
-          return new Text(header, 0, 0);
-        }
-
-        return new Text("", 0, 0);
+      renderResult() {
+        return makeEmpty();
       },
 
       execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
