@@ -54,7 +54,11 @@ export function streamToOutputFile(
   agentId: string,
   cwd: string,
 ): () => void {
-  const writtenCount = 1;
+  // Must be mutable: each flush advances through new session.messages entries.
+  // If this never increments, `while (writtenCount < messages.length)` spins
+  // forever once there is more than one message (blocks the event loop → TUI
+  // freeze and ~100% CPU).
+  let writtenCount = 1;
 
   const flush = () => {
     const messages = session.messages;
@@ -78,6 +82,7 @@ export function streamToOutputFile(
       } catch {
         /* best-effort append */
       }
+      writtenCount += 1;
     }
   };
 
