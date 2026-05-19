@@ -23,8 +23,7 @@ import {
 import {
   bashDiffRenderingEnabled,
   diffBackgroundEnabled,
-  settingBoolean,
-  settingNumber,
+  toolRendererSettings,
 } from "./settings.js";
 import { borderMuted, stackPrefix, toolLabel, treeConnector } from "./theme.js";
 import {
@@ -86,11 +85,11 @@ function languageForPath(path?: string): string | undefined {
 function highlightDiffContent(
   content: string,
   path: string | undefined,
-  theme: any,
-  cwd?: string,
+  _theme: any,
+  _cwd?: string,
 ): string {
   const display = diffDisplayContent(content);
-  if (!display || !settingBoolean("shikiDiffs", true, cwd)) return display;
+  if (!display || !toolRendererSettings.shikiDiffs) return display;
   if (display.length > 5000) return display;
   const language = languageForPath(path);
   if (!language) return display;
@@ -574,7 +573,7 @@ function diffStatBar(additions: number, removals: number, theme: any): string {
 export function diffSummary(
   diff: StructuredDiff,
   theme: any,
-  cwd?: string,
+  _cwd?: string,
 ): string {
   const parts: string[] = [];
   if (diff.additions > 0) parts.push(theme.fg("success", `+${diff.additions}`));
@@ -583,7 +582,7 @@ export function diffSummary(
   const bar = diffStatBar(diff.additions, diff.removals, theme);
   const hunks = diff.hunks ?? countStructuredHunks(diff.lines);
   let summary = `${parts.join(" ")}${bar ? ` ${bar}` : ""}`;
-  if (settingBoolean("showDiffHunkMeta", true, cwd) && hunks > 0)
+  if (toolRendererSettings.showDiffHunkMeta && hunks > 0)
     summary += theme.fg("dim", ` · ${hunks} hunk${hunks === 1 ? "" : "s"}`);
   return summary;
 }
@@ -621,9 +620,9 @@ function formatNum(value: number | null, width: number): string {
 function lineWordRanges(
   line: StructuredDiffLine,
   mate: StructuredDiffLine | null,
-  cwd?: string,
+  _cwd?: string,
 ): Array<[number, number]> {
-  if (!mate || !settingBoolean("wordDiffHighlights", true, cwd)) return [];
+  if (!mate || !toolRendererSettings.wordDiffHighlights) return [];
   if (
     !(
       (line.type === "del" && mate.type === "add") ||
@@ -768,9 +767,7 @@ function renderUnifiedDiff(
   return out;
 }
 
-function pairDiffRows(
-  rows: StructuredDiffLine[],
-): Array<{
+function pairDiffRows(rows: StructuredDiffLine[]): Array<{
   left: StructuredDiffLine | null;
   right: StructuredDiffLine | null;
 }> {
@@ -922,15 +919,12 @@ function renderSplitDiff(
 
 function configuredDiffRowLimit(
   expanded: boolean,
-  cwd?: string,
+  _cwd?: string,
 ): number | null {
-  const fallbackLimit = expanded ? 4000 : 24;
   const configuredLimit = Math.floor(
-    settingNumber(
-      expanded ? "diffExpandedLines" : "diffPreviewLines",
-      fallbackLimit,
-      cwd,
-    ),
+    expanded
+      ? toolRendererSettings.diffExpandedLines
+      : toolRendererSettings.diffPreviewLines,
   );
   return expanded && configuredLimit <= 0 ? null : Math.max(4, configuredLimit);
 }
@@ -979,8 +973,7 @@ export function renderStructuredDiff(
     configuredLimit === null ? diff.lines.length : Math.max(1, configuredLimit);
   const rows = diff.lines.slice(0, maxRows);
   const useSplit =
-    settingBoolean("splitDiffs", true, cwd) &&
-    shouldUseSplitDiff(diff, rows, width);
+    toolRendererSettings.splitDiffs && shouldUseSplitDiff(diff, rows, width);
   const rendered = useSplit
     ? renderSplitDiff(diff, rows, width, theme, path ?? diff.path, cwd)
     : renderUnifiedDiff(diff, rows, width, theme, path ?? diff.path, cwd);
@@ -1072,9 +1065,7 @@ function displayUnifiedDiffPath(
   return preferred || "diff";
 }
 
-function parseHunkHeader(
-  line: string,
-): {
+function parseHunkHeader(line: string): {
   newCount: number;
   newStart: number;
   oldCount: number;
@@ -1258,7 +1249,7 @@ export function shouldRenderBashDiffsForCommand(
   cwd?: string,
 ): boolean {
   return isGitDiffCommand(args?.command)
-    ? settingBoolean("renderGitDiffCommandDiffs", false, cwd)
+    ? toolRendererSettings.renderGitDiffCommandDiffs
     : bashDiffRenderingEnabled(cwd);
 }
 
@@ -1466,7 +1457,7 @@ export function renderMutationCallPreview(
   cwd: string,
 ): TruncatedLines | ReturnType<typeof makeEmpty> {
   if (context?.executionStarted && !context?.isPartial) return makeEmpty();
-  if (!settingBoolean("mutationCallPreview", true, cwd) || diffs.length === 0)
+  if (!toolRendererSettings.mutationCallPreview || diffs.length === 0)
     return makeEmpty();
   const total = summarizeDiffs(diffs);
   const prefix =
@@ -1478,8 +1469,7 @@ export function renderMutationCallPreview(
   const perDiffLimit = Math.max(
     4,
     Math.floor(
-      settingNumber("mutationCallPreviewLines", 16, cwd) /
-        Math.max(1, maxShown),
+      toolRendererSettings.mutationCallPreviewLines / Math.max(1, maxShown),
     ),
   );
   for (let index = 0; index < maxShown; index++) {

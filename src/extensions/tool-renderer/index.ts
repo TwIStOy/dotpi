@@ -19,7 +19,7 @@ import {
   installSkillInvocationRenderer,
   installUserMessageRenderer,
 } from "./messages.js";
-import { settingBoolean } from "./settings.js";
+import { toolRendererSettings } from "./settings.js";
 import { registerStackEvents } from "./stack.js";
 import {
   registerBash,
@@ -35,8 +35,6 @@ export default async function toolRenderer(pi: ExtensionAPI): Promise<void> {
   const guard = pi as unknown as Record<PropertyKey, unknown>;
   if (guard[INSTALL_SYMBOL]) return;
   guard[INSTALL_SYMBOL] = true;
-  if (!settingBoolean("enabled", true)) return;
-
   registerStackEvents(pi);
   installToolExecutionRendererPatch(pi);
   installToolChromePatch();
@@ -57,13 +55,12 @@ export default async function toolRenderer(pi: ExtensionAPI): Promise<void> {
   const cwd = process.cwd();
   registerRead(pi, agent, cwd);
   registerBash(pi, agent, cwd);
-  if (settingBoolean("renderMutationTools", false, cwd)) {
+  if (toolRendererSettings.renderMutationTools) {
     registerEdit(pi, agent, cwd);
     registerWrite(pi, agent, cwd);
   }
   registerReadOnly(pi, agent, cwd, "grep");
   registerReadOnly(pi, agent, cwd, "find");
   registerReadOnly(pi, agent, cwd, "ls");
-  if (settingBoolean("registerBatchTool", true, cwd))
-    registerToolBatch(pi, agent, cwd);
+  if (toolRendererSettings.registerBatchTool) registerToolBatch(pi, agent, cwd);
 }

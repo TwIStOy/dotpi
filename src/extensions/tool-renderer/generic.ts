@@ -8,7 +8,7 @@ import {
   type StructuredDiff,
   type StructuredDiffLine,
 } from "./diff.js";
-import { mcpOutputMode, settingBoolean, settingNumber } from "./settings.js";
+import { mcpOutputMode, toolRendererSettings } from "./settings.js";
 import { stackPrefix, toolLabel, treeConnector, treeStem } from "./theme.js";
 import {
   clearBlink,
@@ -92,7 +92,7 @@ export function shouldUseUnknownToolRenderer(
 ): boolean {
   return (
     Boolean(name) &&
-    settingBoolean("genericToolRenderers", true) &&
+    toolRendererSettings.genericToolRenderers &&
     isUnknownToolComponent(component)
   );
 }
@@ -463,8 +463,7 @@ export function renderApplyPatchResult(
       ? Math.max(
           4,
           Math.floor(
-            settingNumber("applyPatchPreviewLines", 18, context?.cwd) /
-              Math.max(1, maxShown),
+            toolRendererSettings.applyPatchPreviewLines / Math.max(1, maxShown),
           ),
         )
       : undefined;
@@ -737,11 +736,9 @@ export function renderGenericToolResult(
     const limit = Math.max(
       1,
       Math.floor(
-        settingNumber(
-          isMcpToolName(name) ? "mcpPreviewLines" : "searchPreviewLines",
-          80,
-          context?.cwd,
-        ),
+        isMcpToolName(name)
+          ? toolRendererSettings.mcpPreviewLines
+          : toolRendererSettings.searchPreviewLines,
       ),
     );
     text += `\n${lines

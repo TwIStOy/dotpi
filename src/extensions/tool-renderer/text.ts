@@ -4,8 +4,8 @@ import { basename, extname } from "node:path";
 import { stableRenderWidth, stripAnsi } from "./ansi.js";
 import {
   pendingStatusAnimation,
-  settingNumber,
   stackToolCalls,
+  toolRendererSettings,
 } from "./settings.js";
 import { stackPrefix, toolLabel, treeConnector } from "./theme.js";
 
@@ -73,11 +73,8 @@ export function textContent(result: any): string {
   return part?.text ?? "";
 }
 
-export function clipLine(line: string, cwd?: string): string {
-  const max = Math.max(
-    40,
-    Math.floor(settingNumber("maxLineWidth", 1000, cwd)),
-  );
+export function clipLine(line: string, _cwd?: string): string {
+  const max = Math.max(40, Math.floor(toolRendererSettings.maxLineWidth));
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
@@ -318,7 +315,7 @@ export function renderPathListPreview(
     );
   const limit = Math.max(
     1,
-    Math.floor(settingNumber("searchPreviewLines", 80, cwd)),
+    Math.floor(toolRendererSettings.searchPreviewLines),
   );
   const shown = rawItems.slice(0, expanded ? limit : Math.min(limit, 12));
   const lines = shown.map((item, index) => {
@@ -357,10 +354,10 @@ export function readCallText(args: any, theme: any): string {
   return `${toolLabel(theme, "Read ")}${theme.fg("accent", `${args?.path ?? ""}${range}`)}`;
 }
 
-export function bashCallText(args: any, theme: any, cwd?: string): string {
+export function bashCallText(args: any, theme: any, _cwd?: string): string {
   const max = Math.max(
     20,
-    Math.floor(settingNumber("commandPreviewChars", 96, cwd)),
+    Math.floor(toolRendererSettings.commandPreviewChars),
   );
   const rawCommand = typeof args?.command === "string" ? args.command : "";
   const command =

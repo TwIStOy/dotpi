@@ -25,7 +25,7 @@ import {
   shouldUseUnknownToolRenderer,
   componentDefinesRenderer,
 } from "./generic.js";
-import { settingBoolean, settingEnum, toolChromeMode } from "./settings.js";
+import { toolChromeMode, toolRendererSettings } from "./settings.js";
 import { subtleRule } from "./theme.js";
 
 const TOOL_EXECUTION_RENDERER_PATCH_SYMBOL = Symbol.for(
@@ -146,7 +146,7 @@ export function installToolExecutionRendererPatch(pi: ExtensionAPI): void {
     }
     if (
       toolName === "apply_patch" &&
-      settingBoolean("applyPatchRenderer", true) &&
+      toolRendererSettings.applyPatchRenderer &&
       !componentDefinesRenderer(this, "renderCall")
     ) {
       return withCallTheme(this, (args: any, theme: any, context: any) =>
@@ -154,7 +154,7 @@ export function installToolExecutionRendererPatch(pi: ExtensionAPI): void {
       );
     }
     if (
-      settingBoolean("genericToolRenderers", true) &&
+      toolRendererSettings.genericToolRenderers &&
       shouldUseGenericRenderer(toolName) &&
       !componentDefinesRenderer(this, "renderCall")
     ) {
@@ -178,7 +178,7 @@ export function installToolExecutionRendererPatch(pi: ExtensionAPI): void {
     }
     if (
       toolName === "apply_patch" &&
-      settingBoolean("applyPatchRenderer", true) &&
+      toolRendererSettings.applyPatchRenderer &&
       !componentDefinesRenderer(this, "renderResult")
     ) {
       return withResultTheme(
@@ -188,7 +188,7 @@ export function installToolExecutionRendererPatch(pi: ExtensionAPI): void {
       );
     }
     if (
-      settingBoolean("genericToolRenderers", true) &&
+      toolRendererSettings.genericToolRenderers &&
       shouldUseGenericRenderer(toolName) &&
       !componentDefinesRenderer(this, "renderResult")
     ) {
@@ -301,12 +301,7 @@ export function registerToolChromeEvents(pi: ExtensionAPI): void {
 export function installWorkingIndicator(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     if (!ctx.hasUI) return;
-    const mode = settingEnum(
-      "workingIndicator",
-      ["default", "pulse", "hidden"] as const,
-      "default",
-      ctx.cwd,
-    );
+    const mode = toolRendererSettings.workingIndicator;
     if (mode === "default") return;
     if (mode === "hidden") {
       ctx.ui.setWorkingIndicator({ frames: [] });

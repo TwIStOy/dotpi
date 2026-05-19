@@ -6,8 +6,8 @@ import {
   suppressReadOnlyBashDiffOutput,
 } from "./diff.js";
 import {
-  settingNumber,
   stackChildDisplay,
+  toolRendererSettings,
   type StackChildDisplay,
 } from "./settings.js";
 import {
@@ -194,7 +194,7 @@ function stackItemPreview(
       ) ??
       preview(
         item.resultText,
-        Math.max(1, Math.floor(settingNumber("bashPreviewLines", 80, cwd))),
+        Math.max(1, Math.floor(toolRendererSettings.bashPreviewLines)),
         "tail",
         cwd,
       )
@@ -203,13 +203,13 @@ function stackItemPreview(
   if (item.toolName === "read")
     return preview(
       item.resultText,
-      Math.max(1, Math.floor(settingNumber("readPreviewLines", 80, cwd))),
+      Math.max(1, Math.floor(toolRendererSettings.readPreviewLines)),
       "head",
       cwd,
     );
   return preview(
     item.resultText,
-    Math.max(1, Math.floor(settingNumber("searchPreviewLines", 80, cwd))),
+    Math.max(1, Math.floor(toolRendererSettings.searchPreviewLines)),
     "head",
     cwd,
   );

@@ -21,8 +21,8 @@ import {
   bashOutputMode,
   readOutputMode,
   searchOutputMode,
-  settingNumber,
   stackToolCalls,
+  toolRendererSettings,
 } from "./settings.js";
 import { stackPrefix, toolLabel, treeConnector } from "./theme.js";
 import {
@@ -94,10 +94,7 @@ function bashLiveTailState(context: any): BashLiveTailState {
   const state = context?.state;
   if (!state || typeof state !== "object") return {};
   const record = state as Record<string, unknown>;
-  if (
-    !record.bashLiveTail ||
-    typeof record.bashLiveTail !== "object"
-  )
+  if (!record.bashLiveTail || typeof record.bashLiveTail !== "object")
     record.bashLiveTail = {};
   return record.bashLiveTail as BashLiveTailState;
 }
@@ -214,7 +211,7 @@ export function registerRead(pi: ExtensionAPI, agent: any, cwd: string): void {
       if (mode === "preview" && expanded && content) {
         const limit = Math.max(
           1,
-          Math.floor(settingNumber("readPreviewLines", 80, context?.cwd)),
+          Math.floor(toolRendererSettings.readPreviewLines),
         );
         text += `\n${preview(content, limit, "head", context?.cwd)
           .split(/\r?\n/)
@@ -348,11 +345,9 @@ export function registerBash(pi: ExtensionAPI, agent: any, cwd: string): void {
         const limit = Math.max(
           1,
           Math.floor(
-            settingNumber(
-              expanded ? "bashPreviewLines" : "bashCollapsedLines",
-              expanded ? 80 : 10,
-              effectiveCwd,
-            ),
+            expanded
+              ? toolRendererSettings.bashPreviewLines
+              : toolRendererSettings.bashCollapsedLines,
           ),
         );
         text += `\n${preview(output, limit, "tail", effectiveCwd)
@@ -369,7 +364,7 @@ export function registerBash(pi: ExtensionAPI, agent: any, cwd: string): void {
       ) {
         const limit = Math.max(
           1,
-          Math.floor(settingNumber("bashPreviewLines", 80, effectiveCwd)),
+          Math.floor(toolRendererSettings.bashPreviewLines),
         );
         text += `\n${preview(output, limit, "tail", effectiveCwd)
           .split(/\r?\n/)
@@ -467,9 +462,7 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
       const call = `${toolLabel(theme, "Edit ")}${theme.fg("accent", targetPath)}`;
       if (isPartial) return renderPendingDetail("editing…", theme);
       clearBlink(context);
-      const structured = result?.details?.diff as
-        | StructuredDiff
-        | undefined;
+      const structured = result?.details?.diff as StructuredDiff | undefined;
       if (context?.isError || result?.isError) {
         const errorText =
           textContent(result).split(/\r?\n/)[0] || "edit failed";
@@ -566,15 +559,11 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
       const args = context?.args ?? {};
       const targetPath = args.path ?? args.file_path ?? "";
       const lineTotal = lineCount(args.content ?? "");
-      const label = result?.details?.diffWasNewFile
-        ? "Create "
-        : "Write ";
+      const label = result?.details?.diffWasNewFile ? "Create " : "Write ";
       const call = `${toolLabel(theme, label)}${theme.fg("accent", targetPath)} ${theme.fg("dim", `· ${lineTotal} lines`)}`;
       if (isPartial) return renderPendingDetail("writing…", theme);
       clearBlink(context);
-      const structured = result?.details?.diff as
-        | StructuredDiff
-        | undefined;
+      const structured = result?.details?.diff as StructuredDiff | undefined;
       if (context?.isError || result?.isError) {
         const errorText =
           textContent(result).split(/\r?\n/)[0] || "write failed";
@@ -684,7 +673,7 @@ export function registerReadOnly(
         } else {
           const limit = Math.max(
             1,
-            Math.floor(settingNumber("searchPreviewLines", 80, context?.cwd)),
+            Math.floor(toolRendererSettings.searchPreviewLines),
           );
           text += `\n${preview(output, limit, "head", context?.cwd)
             .split(/\r?\n/)

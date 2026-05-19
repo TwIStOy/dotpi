@@ -1,6 +1,6 @@
 import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import { settingNumber } from "./settings.js";
+import { toolRendererSettings } from "./settings.js";
 import {
   isStackableToolName,
   renderStackItemText,
@@ -39,7 +39,6 @@ interface BatchToolDetails {
 
 const TOOL_BATCH_MAX_OUTPUT_BYTES = 50 * 1024;
 const TOOL_BATCH_MAX_OUTPUT_LINES = 2_000;
-const TOOL_BATCH_DEFAULT_CALL_TIMEOUT_MS = 120_000;
 const TOOL_BATCH_MIN_CALL_TIMEOUT_MS = 1_000;
 
 function utf8Length(text: string): number {
@@ -388,7 +387,7 @@ export function registerToolBatch(
       const calls = normalizeBatchCalls(params?.calls);
       const maxCalls = Math.max(
         1,
-        Math.floor(settingNumber("batchMaxCalls", 8, effectiveCwd)),
+        Math.floor(toolRendererSettings.batchMaxCalls),
       );
       if (calls.length === 0)
         return {
@@ -426,13 +425,7 @@ export function registerToolBatch(
       // propagates to all children via the addEventListener bridge).
       const batchCallTimeoutMs = Math.max(
         TOOL_BATCH_MIN_CALL_TIMEOUT_MS,
-        Math.floor(
-          settingNumber(
-            "batchCallTimeoutMs",
-            TOOL_BATCH_DEFAULT_CALL_TIMEOUT_MS,
-            effectiveCwd,
-          ),
-        ),
+        Math.floor(toolRendererSettings.batchCallTimeoutMs),
       );
       const items = await mapBatchWithConcurrency(
         calls,

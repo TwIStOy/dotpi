@@ -19,7 +19,7 @@ import {
   visibleWidth,
   wrapTextWithAnsi,
 } from "./ansi.js";
-import { settingBoolean } from "./settings.js";
+import { toolRendererSettings } from "./settings.js";
 import {
   FALLBACK_THEME,
   stackPrefix,
@@ -77,13 +77,10 @@ function renderUserMessageBorder(lines: string[], width: number): string[] {
 
 function appendUserMessageBreak(
   lines: string[],
-  width: number,
-  cwd?: string,
+  _width: number,
+  _cwd?: string,
 ): string[] {
-  if (
-    lines.length === 0 ||
-    !settingBoolean("userMessageTrailingBlankLine", true, cwd)
-  )
+  if (lines.length === 0 || !toolRendererSettings.userMessageTrailingBlankLine)
     return lines;
   // A visual blank row does not need to fill the terminal width. Keeping it empty
   // avoids writing a printable character into the last column, which can trigger
@@ -122,7 +119,7 @@ export function installUserMessageRenderer(
       const ctx = state?.activeCtx;
       const cwd = ctx?.cwd ?? process.cwd();
       if (box && ctx?.hasUI) {
-        const compact = settingBoolean("compactUserMessages", true, cwd);
+        const compact = toolRendererSettings.compactUserMessages;
         const paddingY = compact ? 0 : 1;
         const boxState = compact
           ? `${paddingY}:border:ansi-green:text:pi-red:left`
@@ -242,8 +239,7 @@ export function installAssistantMessageRenderer(
       message: any,
     ): void {
       state!.originalUpdateContent.call(this, message);
-      const cwd = state?.activeCtx?.cwd ?? process.cwd();
-      if (settingBoolean("alignAssistantMessages", true, cwd))
+      if (toolRendererSettings.alignAssistantMessages)
         alignAssistantContent(this);
     };
   }
@@ -288,7 +284,7 @@ export function installCompactionSummaryRenderer(
     ): void {
       const ctx = state?.activeCtx;
       const cwd = ctx?.cwd ?? process.cwd();
-      if (!settingBoolean("compactCompactionMessages", true, cwd)) {
+      if (!toolRendererSettings.compactCompactionMessages) {
         state!.originalUpdateDisplay.call(this);
         return;
       }
@@ -414,7 +410,7 @@ export function installSkillInvocationRenderer(
     ): void {
       const ctx = state?.activeCtx;
       const cwd = ctx?.cwd ?? process.cwd();
-      if (!settingBoolean("compactSkillMessages", true, cwd)) {
+      if (!toolRendererSettings.compactSkillMessages) {
         state!.originalUpdateDisplay.call(this);
         return;
       }
@@ -599,10 +595,7 @@ export function installMarkdownCodeBlockRenderer(pi: ExtensionAPI): void {
       nextTokenType?: string,
       styleContext?: unknown,
     ): string[] {
-      if (
-        token?.type === "code" &&
-        settingBoolean("styledCodeBlocks", true, state?.activeCtx?.cwd)
-      ) {
+      if (token?.type === "code" && toolRendererSettings.styledCodeBlocks) {
         const codeLines = renderStyledCodeBlock(
           token,
           width,
