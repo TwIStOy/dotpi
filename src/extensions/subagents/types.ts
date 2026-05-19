@@ -10,6 +10,7 @@ export const DEFAULT_AGENT_NAMES = [
   "Explore",
   "Plan",
   "Oracle",
+  "Librarian",
 ] as const;
 
 export type MemoryScope = "user" | "project" | "local";
