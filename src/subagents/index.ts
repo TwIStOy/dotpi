@@ -14,6 +14,7 @@ import {
 import { AgentWidget, type AgentActivity } from "./ui/agent-widget.js"
 import { recordToNotification, formatTaskNotification, registerNotificationRenderer } from "./ui/notifications.js"
 import { ScheduleEngine } from "./schedule.js"
+import { loadCustomAgents, collectExtensionAgentDirs } from "./custom-agents.js"
 import type { AgentRecord } from "./types.js"
 
 export default function initSubagents(pi: ExtensionAPI): void {
@@ -66,6 +67,17 @@ export default function initSubagents(pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event, ctx) => {
     manager.clearCompleted()
+
+    const settings = (ctx as any).settingsManager
+    const extraDirs = settings
+      ? collectExtensionAgentDirs(
+          settings.getProjectSettings?.()?.extensions ?? [],
+          settings.getPackages?.() ?? [],
+          ctx.cwd,
+        )
+      : []
+    const customAgents = loadCustomAgents(ctx.cwd, extraDirs)
+    registerAgents(customAgents)
 
     scheduler.bind(manager, pi)
     scheduler.load()

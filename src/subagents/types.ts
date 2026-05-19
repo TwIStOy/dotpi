@@ -32,7 +32,7 @@ export interface AgentConfig {
   isolation?: IsolationMode
   isDefault?: boolean
   enabled?: boolean
-  source?: "default" | "project" | "global"
+  source?: "default" | "project" | "global" | "extension"
 }
 
 export type JoinMode = "async" | "group" | "smart"

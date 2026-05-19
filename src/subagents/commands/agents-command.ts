@@ -1,9 +1,16 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent"
+import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from "node:fs"
+import { join } from "node:path"
 import type { AgentManager } from "../agent-manager.js"
-import { getAvailableTypes, getAgentConfig } from "../agent-types.js"
+import {
+  getAvailableTypes, getAgentConfig, getDefaultAgentNames,
+  getUserAgentNames, isValidType, registerAgents,
+} from "../agent-types.js"
+import { DEFAULT_AGENTS } from "../default-agents.js"
 import { formatDuration, formatTokens } from "../formatting.js"
 import { getLifetimeTotal } from "../usage.js"
-import type { AgentRecord, ScheduledSubagent } from "../types.js"
+import type { AgentConfig, AgentRecord, ScheduledSubagent } from "../types.js"
+import { getAgentFilePath, loadCustomAgents } from "../custom-agents.js"
 import type { ScheduleEngine } from "../schedule.js"
 
 function formatAgentStatus(record: AgentRecord): string {
@@ -98,21 +105,193 @@ async function showAgentDetail(ctx: ExtensionCommandContext, manager: AgentManag
 
 async function showAgentTypes(ctx: ExtensionCommandContext): Promise<void> {
   const types = getAvailableTypes()
-  if (types.length === 0) {
+  const allTypes = [...new Set([...types, ...getDefaultAgentNames(), ...getUserAgentNames()])]
+  if (allTypes.length === 0) {
     ctx.ui.notify("No agent types available.", "info")
     return
   }
 
   const options: string[] = []
-  for (const name of types) {
+  for (const name of allTypes) {
     const config = getAgentConfig(name)
     if (!config) continue
-    const source = config.source === "default" ? "[default]" : config.source === "project" ? "[project]" : config.source === "global" ? "[global]" : ""
+    const src = config.source ?? (config.isDefault ? "default" : "custom")
+    const sourceIcon = src === "project" ? "•" : src === "global" ? "◦" : src === "extension" ? "◆" : "·"
+    const disabled = config.enabled === false ? " ✕" : ""
     const desc = config.trigger ?? config.description.slice(0, 60)
-    options.push(`${name.padEnd(20)} ${source.padEnd(12)} ${desc}`)
+    options.push(`${sourceIcon} ${name.padEnd(20)}${disabled} ${desc}`)
   }
 
-  await ctx.ui.select("Agent Types", options)
+  const choice = await ctx.ui.select("Agent Types  • project  ◦ global  ◆ extension  · default", options)
+  if (!choice) return
+
+  const name = choice.split(/\s+/)[1]
+  if (!name) return
+
+  await showAgentTypeDetail(ctx, name)
+}
+
+async function showAgentTypeDetail(ctx: ExtensionCommandContext, name: string): Promise<void> {
+  const config = getAgentConfig(name)
+  if (!config) return
+
+  const info = [
+    `Name: ${name}`,
+    `Display: ${config.displayName ?? name}`,
+    `Description: ${config.description}`,
+    `Source: ${config.source ?? "default"}`,
+    `Mode: ${config.promptMode}`,
+    `Tools: ${config.builtinToolNames?.join(", ") ?? "all"}`,
+    `Enabled: ${config.enabled !== false}`,
+    `Extensions: ${config.extensions === true ? "inherit" : config.extensions === false ? "none" : config.extensions.join(", ")}`,
+    `Model: ${config.model ?? "inherit"}`,
+    `Max turns: ${config.maxTurns ?? "unlimited"}`,
+  ].join("\n")
+
+  const isDefault = config.isDefault === true
+  const hasFile = config.source === "project" || config.source === "global"
+  const isDisabled = config.enabled === false
+
+  const actions: string[] = []
+  if (isDefault && !hasFile) {
+    actions.push("Eject (create .md file for customization)")
+  }
+  if (hasFile) {
+    actions.push("Edit")
+    actions.push("Delete .md file")
+  }
+  if (isDisabled) {
+    actions.push("Enable")
+  } else {
+    actions.push("Disable")
+  }
+  actions.push("Back")
+
+  const choice = await ctx.ui.select(info, actions)
+  if (!choice || choice === "Back") return
+
+  if (choice === "Eject (create .md file for customization)") {
+    await ejectAgent(ctx, name, config)
+  } else if (choice === "Edit") {
+    await editAgent(ctx, name, config)
+  } else if (choice === "Delete .md file") {
+    await deleteAgent(ctx, name, config)
+  } else if (choice === "Enable" || choice === "Disable") {
+    await toggleAgent(ctx, name, config, choice === "Disable")
+  }
+}
+
+function agentConfigToFrontmatter(config: AgentConfig): string {
+  const lines: string[] = ["---"]
+  if (config.displayName && config.displayName !== config.name) lines.push(`display_name: ${config.displayName}`)
+  lines.push(`description: ${config.description}`)
+  if (config.builtinToolNames?.length) lines.push(`tools: ${config.builtinToolNames.join(", ")}`)
+  if (config.disallowedTools?.length) lines.push(`disallowed_tools: ${config.disallowedTools.join(", ")}`)
+  if (config.extensions !== true) lines.push(`extensions: ${config.extensions === false ? "none" : (config.extensions as string[]).join(", ")}`)
+  if (config.skills !== true) lines.push(`skills: ${config.skills === false ? "none" : (config.skills as string[]).join(", ")}`)
+  if (config.model) lines.push(`model: ${config.model}`)
+  if (config.thinking) lines.push(`thinking: ${config.thinking}`)
+  if (config.maxTurns != null) lines.push(`max_turns: ${config.maxTurns}`)
+  lines.push(`prompt_mode: ${config.promptMode}`)
+  if (config.inheritContext) lines.push(`inherit_context: true`)
+  if (config.runInBackground) lines.push(`run_in_background: true`)
+  if (config.isolated) lines.push(`isolated: true`)
+  if (config.memory) lines.push(`memory: ${config.memory}`)
+  if (config.isolation) lines.push(`isolation: ${config.isolation}`)
+  lines.push("enabled: true")
+  lines.push("---")
+  lines.push("")
+  lines.push(config.systemPrompt)
+  return lines.join("\n")
+}
+
+async function ejectAgent(ctx: ExtensionCommandContext, name: string, config: AgentConfig): Promise<void> {
+  const scope = await ctx.ui.select("Eject to:", ["Project (.pi/agents/)", "Global (~/.pi/agent/agents/)", "Cancel"])
+  if (!scope || scope === "Cancel") return
+
+  const isProject = scope.startsWith("Project")
+  const scopeTag = isProject ? "project" : "global"
+  const filePath = getAgentFilePath(ctx.cwd, name, scopeTag)
+
+  if (existsSync(filePath)) {
+    ctx.ui.notify(`File already exists: ${filePath}`, "warning")
+    return
+  }
+
+  const dir = join(filePath, "..")
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+  const content = agentConfigToFrontmatter(config)
+  writeFileSync(filePath, content, "utf-8")
+
+  const reloaded = loadCustomAgents(ctx.cwd)
+  registerAgents(reloaded)
+
+  ctx.ui.notify(`Ejected ${name} to ${filePath}`, "info")
+}
+
+async function editAgent(ctx: ExtensionCommandContext, name: string, config: AgentConfig): Promise<void> {
+  const scope = config.source as "project" | "global"
+  const filePath = getAgentFilePath(ctx.cwd, name, scope)
+  ctx.ui.notify(`Edit: ${filePath}`, "info")
+}
+
+async function deleteAgent(ctx: ExtensionCommandContext, name: string, config: AgentConfig): Promise<void> {
+  const scope = config.source as "project" | "global"
+  const filePath = getAgentFilePath(ctx.cwd, name, scope)
+
+  const confirm = await ctx.ui.confirm("Delete agent?", `Delete ${filePath}?`)
+  if (!confirm) return
+
+  try {
+    unlinkSync(filePath)
+  } catch {
+    ctx.ui.notify(`Failed to delete ${filePath}`, "error")
+    return
+  }
+
+  const reloaded = loadCustomAgents(ctx.cwd)
+  registerAgents(reloaded)
+  ctx.ui.notify(`Deleted agent ${name}`, "info")
+}
+
+async function toggleAgent(ctx: ExtensionCommandContext, name: string, config: AgentConfig, disable: boolean): Promise<void> {
+  const hasFile = config.source === "project" || config.source === "global"
+
+  if (hasFile) {
+    const scope = config.source as "project" | "global"
+    const filePath = getAgentFilePath(ctx.cwd, name, scope)
+    try {
+      let content = readFileSync(filePath, "utf-8")
+      if (disable) {
+        content = content.replace(/enabled:\s*true/, "enabled: false")
+        if (!content.includes("enabled:")) {
+          content = content.replace(/^---/, `---\nenabled: false`)
+        }
+      } else {
+        content = content.replace(/enabled:\s*false/, "enabled: true")
+      }
+      writeFileSync(filePath, content, "utf-8")
+    } catch {
+      ctx.ui.notify(`Failed to update ${filePath}`, "error")
+      return
+    }
+  } else if (disable && config.isDefault) {
+    const scope = await ctx.ui.select("Create disabled override in:", ["Project (.pi/agents/)", "Global (~/.pi/agent/agents/)", "Cancel"])
+    if (!scope || scope === "Cancel") return
+
+    const scopeTag = scope.startsWith("Project") ? "project" : "global"
+    const filePath = getAgentFilePath(ctx.cwd, name, scopeTag)
+    const dir = join(filePath, "..")
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+    const content = agentConfigToFrontmatter(config).replace("enabled: true", "enabled: false")
+    writeFileSync(filePath, content, "utf-8")
+  }
+
+  const reloaded = loadCustomAgents(ctx.cwd)
+  registerAgents(reloaded)
+  ctx.ui.notify(`${name} ${disable ? "disabled" : "enabled"}`, "info")
 }
 
 async function showSettings(ctx: ExtensionCommandContext, manager: AgentManager): Promise<void> {
