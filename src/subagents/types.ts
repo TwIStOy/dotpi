@@ -5,7 +5,7 @@ export type { ThinkingLevel }
 
 export type SubagentType = string
 
-export const DEFAULT_AGENT_NAMES = ["general-purpose", "Explore", "Plan"] as const
+export const DEFAULT_AGENT_NAMES = ["general-purpose", "Explore", "Plan", "Oracle"] as const
 
 export type MemoryScope = "user" | "project" | "local"
 
