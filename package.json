@@ -5,7 +5,8 @@
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "skills": "./skills"
   },
   "scripts": {
     "build": "tsc",
