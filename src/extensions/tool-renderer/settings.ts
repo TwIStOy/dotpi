@@ -60,19 +60,19 @@ export const toolRendererSettings = {
 
 export type StackChildDisplay = "rows" | "headline" | "anchor-list";
 
-export function rightMarginGuardEnabled(_cwd?: string): boolean {
+export function rightMarginGuardEnabled(): boolean {
   return toolRendererSettings.rightMarginGuard;
 }
 
-export function stackToolCalls(_cwd?: string): boolean {
+export function stackToolCalls(): boolean {
   return toolRendererSettings.stackToolCalls;
 }
 
-export function stackChildDisplay(_cwd?: string): StackChildDisplay {
+export function stackChildDisplay(): StackChildDisplay {
   return toolRendererSettings.stackChildDisplay;
 }
 
-export function stackShell(_cwd?: string): { renderShell?: "self" } {
+export function stackShell(): { renderShell?: "self" } {
   return stackToolCalls() ? { renderShell: "self" } : {};
 }
 
@@ -81,50 +81,50 @@ export type SearchOutputMode = "hidden" | "count" | "preview";
 export type BashOutputMode = "hidden" | "summary" | "opencode" | "preview";
 export type McpOutputMode = "hidden" | "summary" | "preview";
 
-export function readOutputMode(_cwd?: string): ReadOutputMode {
+export function readOutputMode(): ReadOutputMode {
   return toolRendererSettings.readOutputMode;
 }
 
-export function searchOutputMode(_cwd?: string): SearchOutputMode {
+export function searchOutputMode(): SearchOutputMode {
   return toolRendererSettings.searchOutputMode;
 }
 
-export function bashOutputMode(_cwd?: string): BashOutputMode {
+export function bashOutputMode(): BashOutputMode {
   return toolRendererSettings.bashOutputMode;
 }
 
-export function bashLiveOutputDelayMs(_cwd?: string): number {
+export function bashLiveOutputDelayMs(): number {
   return Math.max(0, Math.floor(toolRendererSettings.bashLiveOutputDelayMs));
 }
 
-export function bashLiveTailLines(_cwd?: string): number {
+export function bashLiveTailLines(): number {
   return Math.max(1, Math.floor(toolRendererSettings.bashLiveTailLines));
 }
 
-export function mcpOutputMode(_cwd?: string): McpOutputMode {
+export function mcpOutputMode(): McpOutputMode {
   return toolRendererSettings.mcpOutputMode;
 }
 
 export type TreeStyle = "unicode" | "ascii";
 
-export function treeStyle(_cwd?: string): TreeStyle {
+export function treeStyle(): TreeStyle {
   return toolRendererSettings.treeStyle;
 }
 
-export function pendingStatusAnimation(_cwd?: string): boolean {
+export function pendingStatusAnimation(): boolean {
   return toolRendererSettings.pendingStatusAnimation;
 }
 
-export function diffBackgroundEnabled(_cwd?: string): boolean {
+export function diffBackgroundEnabled(): boolean {
   return toolRendererSettings.diffBackgrounds;
 }
 
-export function bashDiffRenderingEnabled(_cwd?: string): boolean {
+export function bashDiffRenderingEnabled(): boolean {
   return toolRendererSettings.renderBashDiffs;
 }
 
 export type ToolChromeMode = "off" | "transparent" | "outlines";
 
-export function toolChromeMode(_cwd?: string): ToolChromeMode {
+export function toolChromeMode(): ToolChromeMode {
   return toolRendererSettings.toolChrome;
 }

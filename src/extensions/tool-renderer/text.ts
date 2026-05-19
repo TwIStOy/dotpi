@@ -73,7 +73,7 @@ export function textContent(result: any): string {
   return part?.text ?? "";
 }
 
-export function clipLine(line: string, _cwd?: string): string {
+export function clipLine(line: string): string {
   const max = Math.max(40, Math.floor(toolRendererSettings.maxLineWidth));
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
@@ -82,12 +82,11 @@ export function preview(
   text: string,
   count: number,
   direction: "head" | "tail",
-  cwd?: string,
 ): string {
   const lines = text.split(/\r?\n/);
   const selected =
     direction === "head" ? lines.slice(0, count) : lines.slice(-count);
-  return selected.map((line) => clipLine(line, cwd)).join("\n");
+  return selected.map((line) => clipLine(line)).join("\n");
 }
 
 export function commandExit(text: string): number | null {
@@ -201,13 +200,8 @@ export function blinkingPrefix(theme: any, context: any): string {
   return theme.fg(on ? "success" : "muted", on ? "● " : "○ ");
 }
 
-export function pendingStatusPrefix(
-  theme: any,
-  context: any,
-  cwd?: string,
-): string {
-  if (pendingStatusAnimation(context?.cwd ?? cwd))
-    return blinkingPrefix(theme, context);
+export function pendingStatusPrefix(theme: any, context: any): string {
+  if (pendingStatusAnimation()) return blinkingPrefix(theme, context);
   clearBlink(context);
   return theme.fg("warning", "● ");
 }
@@ -216,17 +210,10 @@ export function renderPendingCall(
   call: string,
   theme: any,
   context: any,
-  cwd?: string,
 ): TruncatedLines | ReturnType<typeof makeEmpty> {
-  if (
-    !context?.executionStarted ||
-    !context?.isPartial ||
-    stackToolCalls(context?.cwd ?? cwd)
-  )
+  if (!context?.executionStarted || !context?.isPartial || stackToolCalls())
     return makeEmpty();
-  return makeTruncatedLines(
-    `${pendingStatusPrefix(theme, context, cwd)}${call}`,
-  );
+  return makeTruncatedLines(`${pendingStatusPrefix(theme, context)}${call}`);
 }
 
 export function renderPendingDetail(text: string, theme: any): TruncatedLines {
@@ -303,7 +290,6 @@ export function renderPathListPreview(
   toolName: "find" | "ls",
   theme: any,
   expanded: boolean,
-  cwd?: string,
 ): string {
   const rawItems = output
     .split(/\r?\n/)
@@ -329,7 +315,7 @@ export function renderPathListPreview(
     const label = isDir
       ? theme.fg("accent", theme.bold(clean))
       : theme.fg("dim", clean);
-    return `${treeConnector(theme, branch as "├" | "└", cwd)}${icon} ${label}`;
+    return `${treeConnector(theme, branch as "├" | "└")}${icon} ${label}`;
   });
   const remaining = rawItems.length - shown.length;
   if (remaining > 0) {
@@ -340,7 +326,7 @@ export function renderPathListPreview(
           : "entries"
         : `file${remaining === 1 ? "" : "s"}`;
     lines.push(
-      `${treeConnector(theme, "└", cwd)}${theme.fg("muted", `… ${remaining} more ${noun}`)}`,
+      `${treeConnector(theme, "└")}${theme.fg("muted", `… ${remaining} more ${noun}`)}`,
     );
   }
   return lines.join("\n");
@@ -354,7 +340,7 @@ export function readCallText(args: any, theme: any): string {
   return `${toolLabel(theme, "Read ")}${theme.fg("accent", `${args?.path ?? ""}${range}`)}`;
 }
 
-export function bashCallText(args: any, theme: any, _cwd?: string): string {
+export function bashCallText(args: any, theme: any): string {
   const max = Math.max(
     20,
     Math.floor(toolRendererSettings.commandPreviewChars),
@@ -388,10 +374,9 @@ export function readOnlyCallText(
   toolName: string,
   args: any,
   theme: any,
-  cwd?: string,
 ): string {
   const query = args?.pattern ?? args?.glob ?? args?.path ?? args?.query ?? "";
-  return `${toolLabel(theme, `${toolName} `)}${theme.fg("accent", clipLine(String(query), cwd))}`;
+  return `${toolLabel(theme, `${toolName} `)}${theme.fg("accent", clipLine(String(query)))}`;
 }
 
 export function plural(

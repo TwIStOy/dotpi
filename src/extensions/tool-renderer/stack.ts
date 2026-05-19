@@ -125,14 +125,10 @@ export function contextToolCallId(
   );
 }
 
-export function stackItemCallText(
-  item: StackItem,
-  theme: any,
-  cwd?: string,
-): string {
+export function stackItemCallText(item: StackItem, theme: any): string {
   if (item.toolName === "read") return readCallText(item.args, theme);
-  if (item.toolName === "bash") return bashCallText(item.args, theme, cwd);
-  return readOnlyCallText(item.toolName, item.args, theme, cwd);
+  if (item.toolName === "bash") return bashCallText(item.args, theme);
+  return readOnlyCallText(item.toolName, item.args, theme);
 }
 
 function stackItemSummary(item: StackItem, theme: any): string {
@@ -175,13 +171,12 @@ function stackItemPreview(
       item.toolName,
       theme,
       expanded,
-      cwd,
     );
   if (item.toolName === "bash") {
-    const renderDiffs = shouldRenderBashDiffsForCommand(item.args, cwd);
+    const renderDiffs = shouldRenderBashDiffsForCommand(item.args);
     if (
       !renderDiffs &&
-      suppressReadOnlyBashDiffOutput(item.args, item.resultText, cwd)
+      suppressReadOnlyBashDiffOutput(item.args, item.resultText)
     )
       return "";
     return (
@@ -196,7 +191,6 @@ function stackItemPreview(
         item.resultText,
         Math.max(1, Math.floor(toolRendererSettings.bashPreviewLines)),
         "tail",
-        cwd,
       )
     );
   }
@@ -205,13 +199,11 @@ function stackItemPreview(
       item.resultText,
       Math.max(1, Math.floor(toolRendererSettings.readPreviewLines)),
       "head",
-      cwd,
     );
   return preview(
     item.resultText,
     Math.max(1, Math.floor(toolRendererSettings.searchPreviewLines)),
     "head",
-    cwd,
   );
 }
 
@@ -223,14 +215,14 @@ export function renderStackItemText(
   branch = "├",
 ): string {
   const typedBranch = branch as TreeBranch;
-  let text = `${treeConnector(theme, typedBranch, cwd)}${stackItemCallText(item, theme, cwd)}${theme.fg("dim", " · ")}${stackItemSummary(item, theme)}`;
+  let text = `${treeConnector(theme, typedBranch)}${stackItemCallText(item, theme)}${theme.fg("dim", " · ")}${stackItemSummary(item, theme)}`;
   if (expanded) {
     const previewText = stackItemPreview(item, theme, expanded, cwd);
     if (previewText) {
       const stem =
         item.toolName === "bash"
-          ? treeConnector(theme, "│", cwd)
-          : treeStem(theme, typedBranch, cwd);
+          ? treeConnector(theme, "│")
+          : treeStem(theme, typedBranch);
       const lines = previewText
         .split(/\r?\n/)
         .map((line) => `${stem}${theme.fg("dim", line)}`);
@@ -327,7 +319,7 @@ export function renderStackedToolResult(
   const batch = stackBatches.get(item.batchId);
   if (!batch) return makeEmpty();
   const effectiveCwd = context?.cwd ?? cwd;
-  const childDisplay = stackChildDisplay(effectiveCwd);
+  const childDisplay = stackChildDisplay();
   if (batch.anchorId === id)
     return renderStackBatch(batch, theme, expanded, effectiveCwd, childDisplay);
   if (childDisplay !== "rows") return makeEmpty();

@@ -75,11 +75,7 @@ function renderUserMessageBorder(lines: string[], width: number): string[] {
   ];
 }
 
-function appendUserMessageBreak(
-  lines: string[],
-  _width: number,
-  _cwd?: string,
-): string[] {
+function appendUserMessageBreak(lines: string[]): string[] {
   if (lines.length === 0 || !toolRendererSettings.userMessageTrailingBlankLine)
     return lines;
   // A visual blank row does not need to fill the terminal width. Keeping it empty
@@ -117,7 +113,6 @@ export function installUserMessageRenderer(
     ): string[] {
       const box = this?.contentBox;
       const ctx = state?.activeCtx;
-      const cwd = ctx?.cwd ?? process.cwd();
       if (box && ctx?.hasUI) {
         const compact = toolRendererSettings.compactUserMessages;
         const paddingY = compact ? 0 : 1;
@@ -145,7 +140,7 @@ export function installUserMessageRenderer(
         }
 
         if (compact && width >= 4) {
-          const frameWidth = stableRenderWidth(width, cwd);
+          const frameWidth = stableRenderWidth(width);
           const raw = state!.originalRender.call(
             this,
             Math.max(1, frameWidth - 2),
@@ -155,17 +150,11 @@ export function installUserMessageRenderer(
             : [];
           return appendUserMessageBreak(
             renderUserMessageBorder(lines, frameWidth),
-            width,
-            cwd,
           );
         }
       }
 
-      return appendUserMessageBreak(
-        state!.originalRender.call(this, width),
-        width,
-        cwd,
-      );
+      return appendUserMessageBreak(state!.originalRender.call(this, width));
     };
   }
 
@@ -283,7 +272,6 @@ export function installCompactionSummaryRenderer(
       this: any,
     ): void {
       const ctx = state?.activeCtx;
-      const cwd = ctx?.cwd ?? process.cwd();
       if (!toolRendererSettings.compactCompactionMessages) {
         state!.originalUpdateDisplay.call(this);
         return;
@@ -316,7 +304,7 @@ export function installCompactionSummaryRenderer(
       if (expanded) {
         this.addChild?.(
           makeTruncatedLines(
-            `${treeConnector(theme, "└", cwd)}${theme.fg("muted", "Summary")}`,
+            `${treeConnector(theme, "└")}${theme.fg("muted", "Summary")}`,
           ),
         );
         this.addChild?.(
@@ -409,7 +397,6 @@ export function installSkillInvocationRenderer(
       this: any,
     ): void {
       const ctx = state?.activeCtx;
-      const cwd = ctx?.cwd ?? process.cwd();
       if (!toolRendererSettings.compactSkillMessages) {
         state!.originalUpdateDisplay.call(this);
         return;
@@ -442,7 +429,7 @@ export function installSkillInvocationRenderer(
       if (expanded) {
         this.addChild?.(
           makeTruncatedLines(
-            `${treeConnector(th, "└", cwd)}${th.fg("muted", "Content")}`,
+            `${treeConnector(th, "└")}${th.fg("muted", "Content")}`,
           ),
         );
         this.addChild?.(
@@ -517,7 +504,7 @@ function renderStyledCodeBlock(
   markdownTheme: any,
   ctx?: ExtensionContext,
 ): string[] {
-  const contentWidth = stableRenderWidth(width, ctx?.cwd);
+  const contentWidth = stableRenderWidth(width);
   const rawLang = typeof token?.lang === "string" ? token.lang.trim() : "";
   const lang = rawLang.split(/\s+/)[0] || undefined;
   const code = typeof token?.text === "string" ? token.text : "";

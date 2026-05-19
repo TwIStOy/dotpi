@@ -376,10 +376,9 @@ function applyPatchResultSummary(
   changes: ApplyPatchChange[],
   total: StructuredDiff,
   theme: any,
-  cwd?: string,
 ): string {
   if (total.additions > 0 || total.removals > 0)
-    return diffSummary(total, theme, cwd);
+    return diffSummary(total, theme);
   return theme.fg(
     "success",
     changes.length === 1 ? applyPatchChangeStatus(changes[0]!) : "applied",
@@ -426,7 +425,7 @@ export function renderApplyPatchCall(
     : theme.fg("muted", "patch");
   const total =
     changes.length > 1
-      ? `${theme.fg("dim", " · ")}${diffSummary(summarizeApplyPatchChanges(changes), theme, context?.cwd)}`
+      ? `${theme.fg("dim", " · ")}${diffSummary(summarizeApplyPatchChanges(changes), theme)}`
       : "";
   return makeTruncatedLines(
     `${genericStatusPrefix(context, theme)}${toolLabel(theme, "Apply Patch ")}${summary}${total}`,
@@ -455,7 +454,7 @@ export function renderApplyPatchResult(
       `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${theme.fg("success", "applied")}`,
     );
   const total = summarizeApplyPatchChanges(changes);
-  let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${applyPatchResultSummary(changes, total, theme, context?.cwd)}`;
+  let text = `${stackPrefix(theme)}${call}${theme.fg("dim", " · ")}${applyPatchResultSummary(changes, total, theme)}`;
   const maxShown = expanded ? changes.length : Math.min(1, changes.length);
   const hidden = changes.length - maxShown;
   const rowLimit =
@@ -472,11 +471,7 @@ export function renderApplyPatchResult(
     const changed = change.diff.additions > 0 || change.diff.removals > 0;
     const connector =
       changes.length > 1
-        ? treeConnector(
-            theme,
-            i === maxShown - 1 && hidden === 0 ? "└" : "├",
-            context?.cwd,
-          )
+        ? treeConnector(theme, i === maxShown - 1 && hidden === 0 ? "└" : "├")
         : "";
     if (!changed) {
       if (changes.length > 1)
@@ -484,11 +479,11 @@ export function renderApplyPatchResult(
       continue;
     }
     if (changes.length > 1)
-      text += `\n${connector}${theme.fg("accent", applyPatchChangeLabel(change))} ${diffSummary(change.diff, theme, context?.cwd)}`;
+      text += `\n${connector}${theme.fg("accent", applyPatchChangeLabel(change))} ${diffSummary(change.diff, theme)}`;
     text += `\n${renderStructuredDiff(change.diff, theme, expanded, context?.cwd, rowLimit, change.diff.path)}`;
   }
   if (hidden > 0)
-    text += `\n${treeConnector(theme, "└", context?.cwd)}${theme.fg("muted", `… ${hidden} more file patch${hidden === 1 ? "" : "es"} · ctrl+o to expand`)}`;
+    text += `\n${treeConnector(theme, "└")}${theme.fg("muted", `… ${hidden} more file patch${hidden === 1 ? "" : "es"} · ctrl+o to expand`)}`;
   return makeTruncatedLines(text);
 }
 
@@ -667,15 +662,15 @@ export function renderUnknownToolResult(
       `${text}${theme.fg("dim", " · ctrl+o to expand")}`,
     );
   const json = JSON.stringify(args, null, 2).split(/\r?\n/);
-  text += `\n${treeConnector(theme, raw ? "├" : "└", context?.cwd)}${theme.fg("muted", "args")}`;
-  text += `\n${json.map((line) => `${treeStem(theme, raw ? "├" : "└", context?.cwd)}${theme.fg("dim", clipLine(line, context?.cwd))}`).join("\n")}`;
+  text += `\n${treeConnector(theme, raw ? "├" : "└")}${theme.fg("muted", "args")}`;
+  text += `\n${json.map((line) => `${treeStem(theme, raw ? "├" : "└")}${theme.fg("dim", clipLine(line))}`).join("\n")}`;
   if (raw) {
     const lines = raw.split(/\r?\n/);
-    text += `\n${treeConnector(theme, "└", context?.cwd)}${theme.fg(context?.isError ? "error" : "muted", clipLine(lines[0] ?? raw, context?.cwd))}`;
+    text += `\n${treeConnector(theme, "└")}${theme.fg(context?.isError ? "error" : "muted", clipLine(lines[0] ?? raw))}`;
     for (const line of lines.slice(1, 8))
-      text += `\n${treeStem(theme, "└", context?.cwd)}${theme.fg("dim", clipLine(line, context?.cwd))}`;
+      text += `\n${treeStem(theme, "└")}${theme.fg("dim", clipLine(line))}`;
     if (lines.length > 8)
-      text += `\n${treeStem(theme, "└", context?.cwd)}${theme.fg("muted", `… ${lines.length - 8} more line(s)`)}`;
+      text += `\n${treeStem(theme, "└")}${theme.fg("muted", `… ${lines.length - 8} more line(s)`)}`;
   }
   return makeTruncatedLines(text);
 }
@@ -715,7 +710,7 @@ export function renderGenericToolResult(
   clearBlink(context);
   const raw = textContent(result).trim();
   const lines = raw ? raw.split(/\r?\n/) : [];
-  const mode = isMcpToolName(name) ? mcpOutputMode(context?.cwd) : "preview";
+  const mode = isMcpToolName(name) ? mcpOutputMode() : "preview";
   if (mode === "hidden") return makeEmpty();
   if (context?.isError) {
     const first = lines[0] || `${humanizeToolName(name)} failed`;
@@ -745,7 +740,7 @@ export function renderGenericToolResult(
       .slice(0, limit)
       .map(
         (line) =>
-          `${treeConnector(theme, "│")}${theme.fg("dim", clipLine(line, context?.cwd))}`,
+          `${treeConnector(theme, "│")}${theme.fg("dim", clipLine(line))}`,
       )
       .join("\n")}`;
     if (lines.length > limit)

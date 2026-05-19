@@ -63,8 +63,8 @@ export function borderMuted(theme: any, text: string): string {
 
 export type TreeBranch = "├" | "└" | "│";
 
-export function treeGlyph(branch: TreeBranch, cwd?: string): string {
-  if (treeStyle(cwd) === "ascii") {
+export function treeGlyph(branch: TreeBranch): string {
+  if (treeStyle() === "ascii") {
     if (branch === "│") return "|  ";
     return branch === "└" ? "`-- " : "|-- ";
   }
@@ -72,18 +72,14 @@ export function treeGlyph(branch: TreeBranch, cwd?: string): string {
   return `  ${branch}─ `;
 }
 
-export function treeConnector(
-  theme: any,
-  branch: TreeBranch = "├",
-  cwd?: string,
-): string {
-  return toolRule(theme, treeGlyph(branch, cwd));
+export function treeConnector(theme: any, branch: TreeBranch = "├"): string {
+  return toolRule(theme, treeGlyph(branch));
 }
 
-export function treeStem(theme: any, branch: TreeBranch, cwd?: string): string {
+export function treeStem(theme: any, branch: TreeBranch): string {
   if (branch === "└")
-    return theme.fg("muted", treeStyle(cwd) === "ascii" ? "    " : "     ");
-  return treeConnector(theme, "│", cwd);
+    return theme.fg("muted", treeStyle() === "ascii" ? "    " : "     ");
+  return treeConnector(theme, "│");
 }
 
 export function toolLabel(theme: any, label: string): string {

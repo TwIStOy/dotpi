@@ -85,8 +85,6 @@ function languageForPath(path?: string): string | undefined {
 function highlightDiffContent(
   content: string,
   path: string | undefined,
-  _theme: any,
-  _cwd?: string,
 ): string {
   const display = diffDisplayContent(content);
   if (!display || !toolRendererSettings.shikiDiffs) return display;
@@ -570,11 +568,7 @@ function diffStatBar(additions: number, removals: number, theme: any): string {
   return `${theme.fg("dim", "[")}${theme.fg("toolDiffAdded", "━".repeat(addSlots))}${theme.fg("toolDiffRemoved", "━".repeat(delSlots))}${theme.fg("dim", "]")}`;
 }
 
-export function diffSummary(
-  diff: StructuredDiff,
-  theme: any,
-  _cwd?: string,
-): string {
+export function diffSummary(diff: StructuredDiff, theme: any): string {
   const parts: string[] = [];
   if (diff.additions > 0) parts.push(theme.fg("success", `+${diff.additions}`));
   if (diff.removals > 0) parts.push(theme.fg("error", `-${diff.removals}`));
@@ -592,7 +586,6 @@ function colorDiffText(
   text: string,
   theme: any,
   ranges: Array<[number, number]> = [],
-  cwd?: string,
 ): string {
   if (line.type === "sep") return theme.fg("dim", text);
   if (line.type === "ctx")
@@ -607,7 +600,7 @@ function colorDiffText(
     fgToken,
     bgToken,
     DIFF_WORD_BG_TOKEN,
-    diffBackgroundEnabled(cwd),
+    diffBackgroundEnabled(),
   );
 }
 
@@ -620,7 +613,6 @@ function formatNum(value: number | null, width: number): string {
 function lineWordRanges(
   line: StructuredDiffLine,
   mate: StructuredDiffLine | null,
-  _cwd?: string,
 ): Array<[number, number]> {
   if (!mate || !toolRendererSettings.wordDiffHighlights) return [];
   if (
@@ -645,10 +637,9 @@ function highlightedLineBody(
   line: StructuredDiffLine,
   theme: any,
   path: string | undefined,
-  cwd?: string,
 ): string {
   if (line.type === "sep") return line.content || " ";
-  return highlightDiffContent(line.content, path, theme, cwd) || " ";
+  return highlightDiffContent(line.content, path) || " ";
 }
 
 function renderUnifiedLine(
@@ -669,7 +660,7 @@ function renderUnifiedLine(
         : "toolDiffContext";
   const gutter = `${theme.fg("muted", `${formatNum(line.oldNum, numWidth)} ${formatNum(line.newNum, numWidth)}`)} ${theme.fg(signToken, sign)} `;
   const contentWidth = Math.max(10, width - visibleLength(gutter));
-  const rendered = `${gutter}${truncateAnsi(colorDiffText(line, highlightedLineBody(line, theme, path, cwd), theme, ranges, cwd), contentWidth)}`;
+  const rendered = `${gutter}${truncateAnsi(colorDiffText(line, highlightedLineBody(line, theme, path), theme, ranges), contentWidth)}`;
   return padVisible(rendered, width);
 }
 
@@ -702,7 +693,7 @@ function renderUnifiedDiff(
     const cell = ` ${padVisible(renderedLine, contentWidth)} `;
     const bgToken = diffLineBgToken(line);
     out.push(
-      `${leftBorder}${bgToken ? applyFullLineBg(theme, bgToken, cell, diffBackgroundEnabled(cwd)) : cell}${rightBorder}`,
+      `${leftBorder}${bgToken ? applyFullLineBg(theme, bgToken, cell, diffBackgroundEnabled()) : cell}${rightBorder}`,
     );
   };
   let index = 0;
@@ -743,7 +734,7 @@ function renderUnifiedDiff(
             theme,
             path ?? diff.path,
             cwd,
-            lineWordRanges(del, add ?? null, cwd),
+            lineWordRanges(del, add ?? null),
           ),
         );
       if (add)
@@ -756,7 +747,7 @@ function renderUnifiedDiff(
             theme,
             path ?? diff.path,
             cwd,
-            lineWordRanges(add, del ?? null, cwd),
+            lineWordRanges(add, del ?? null),
           ),
         );
     }
@@ -809,7 +800,7 @@ function renderDiffHalf(
   if (!line) return " ".repeat(width);
   const num = side === "old" ? line.oldNum : line.newNum;
   const sign = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
-  const body = highlightedLineBody(line, theme, path, cwd);
+  const body = highlightedLineBody(line, theme, path);
   const prefix = `${formatNum(num, numWidth)} ${sign} `;
   const raw = `${prefix}${body}`;
   const shiftedRanges = ranges.map(([start, end]): [number, number] => [
@@ -817,7 +808,7 @@ function renderDiffHalf(
     end + prefix.length,
   ]);
   return padVisible(
-    truncateAnsi(colorDiffText(line, raw, theme, shiftedRanges, cwd), width),
+    truncateAnsi(colorDiffText(line, raw, theme, shiftedRanges), width),
     width,
   );
 }
@@ -868,7 +859,7 @@ function renderDiffCell(
         theme,
         bgToken,
         padVisible(cell, cellWidth),
-        diffBackgroundEnabled(cwd),
+        diffBackgroundEnabled(),
       )
     : cell;
 }
@@ -906,9 +897,9 @@ function renderSplitDiff(
   const out = [topRule];
   for (const pair of pairDiffRows(rows)) {
     const leftRanges =
-      pair.left && pair.right ? lineWordRanges(pair.left, pair.right, cwd) : [];
+      pair.left && pair.right ? lineWordRanges(pair.left, pair.right) : [];
     const rightRanges =
-      pair.left && pair.right ? lineWordRanges(pair.right, pair.left, cwd) : [];
+      pair.left && pair.right ? lineWordRanges(pair.right, pair.left) : [];
     out.push(
       `${leftBorder}${renderDiffCell(pair.left, "old", leftCellWidth, numWidth, theme, path ?? diff.path, cwd, leftRanges)}${divider}${renderDiffCell(pair.right, "new", rightCellWidth, numWidth, theme, path ?? diff.path, cwd, rightRanges)}${rightBorder}`,
     );
@@ -917,10 +908,7 @@ function renderSplitDiff(
   return out;
 }
 
-function configuredDiffRowLimit(
-  expanded: boolean,
-  _cwd?: string,
-): number | null {
+function configuredDiffRowLimit(expanded: boolean): number | null {
   const configuredLimit = Math.floor(
     expanded
       ? toolRendererSettings.diffExpandedLines
@@ -966,9 +954,9 @@ export function renderStructuredDiff(
 ): string {
   if (diff.additions === 0 && diff.removals === 0)
     return theme.fg("muted", "no changes");
-  const width = Math.max(40, terminalWidth(cwd) - Math.max(0, widthOffset));
+  const width = Math.max(40, terminalWidth() - Math.max(0, widthOffset));
   const configuredLimit =
-    rowLimit === undefined ? configuredDiffRowLimit(expanded, cwd) : rowLimit;
+    rowLimit === undefined ? configuredDiffRowLimit(expanded) : rowLimit;
   const maxRows =
     configuredLimit === null ? diff.lines.length : Math.max(1, configuredLimit);
   const rows = diff.lines.slice(0, maxRows);
@@ -1244,13 +1232,10 @@ export function parseUnifiedDiffOutput(
   return files.length > 0 ? files : null;
 }
 
-export function shouldRenderBashDiffsForCommand(
-  args: any,
-  cwd?: string,
-): boolean {
+export function shouldRenderBashDiffsForCommand(args: any): boolean {
   return isGitDiffCommand(args?.command)
     ? toolRendererSettings.renderGitDiffCommandDiffs
-    : bashDiffRenderingEnabled(cwd);
+    : bashDiffRenderingEnabled();
 }
 
 function outputContainsUnifiedDiff(output: string): boolean {
@@ -1260,11 +1245,9 @@ function outputContainsUnifiedDiff(output: string): boolean {
 export function suppressReadOnlyBashDiffOutput(
   args: any,
   output: string,
-  cwd?: string,
 ): boolean {
   return (
-    !shouldRenderBashDiffsForCommand(args, cwd) &&
-    outputContainsUnifiedDiff(output)
+    !shouldRenderBashDiffsForCommand(args) && outputContainsUnifiedDiff(output)
   );
 }
 
@@ -1273,7 +1256,7 @@ export function renderBashDiffOutput(
   theme: any,
   expanded: boolean,
   cwd?: string,
-  enabled = bashDiffRenderingEnabled(cwd),
+  enabled = bashDiffRenderingEnabled(),
 ): string | null {
   if (!enabled) return null;
   const files = parseUnifiedDiffOutput(output);
@@ -1295,12 +1278,12 @@ export function renderBashDiffOutput(
       sum + (file.diff.hunks ?? countStructuredHunks(file.diff.lines)),
     0,
   );
-  let remainingRows = configuredDiffRowLimit(expanded, cwd);
+  let remainingRows = configuredDiffRowLimit(expanded);
   const singleFile = files.length === 1;
   const rendered: string[] = [
     singleFile
-      ? `${toolLabel(theme, "Diff ")}${theme.fg("accent", files[0]!.path)} ${diffSummary(files[0]!.diff, theme, cwd)}`
-      : `${toolLabel(theme, "Diff ")}${theme.fg("muted", `${files.length} files`)} ${diffSummary({ additions: totalAdditions, chars: output.length, hunks: totalHunks, lines: [], removals: totalRemovals }, theme, cwd)}`,
+      ? `${toolLabel(theme, "Diff ")}${theme.fg("accent", files[0]!.path)} ${diffSummary(files[0]!.diff, theme)}`
+      : `${toolLabel(theme, "Diff ")}${theme.fg("muted", `${files.length} files`)} ${diffSummary({ additions: totalAdditions, chars: output.length, hunks: totalHunks, lines: [], removals: totalRemovals }, theme)}`,
   ];
   let renderedFiles = 0;
   for (const file of files) {
@@ -1312,7 +1295,7 @@ export function renderBashDiffOutput(
     if (!singleFile)
       rendered.push(
         "",
-        `${theme.fg("accent", file.path)} ${diffSummary(file.diff, theme, cwd)}`,
+        `${theme.fg("accent", file.path)} ${diffSummary(file.diff, theme)}`,
       );
     const fileLimit = remainingRows === null ? null : remainingRows;
     const diffText = renderStructuredDiff(
@@ -1344,7 +1327,7 @@ export function renderBashDiffOutput(
     );
   else if (
     remainingRows !== null &&
-    totalLines > configuredDiffRowLimit(expanded, cwd)!
+    totalLines > configuredDiffRowLimit(expanded)!
   ) {
     rendered.push(
       theme.fg("muted", expanded ? "diff UI cap reached" : "ctrl+o to expand"),
@@ -1462,9 +1445,9 @@ export function renderMutationCallPreview(
   const total = summarizeDiffs(diffs);
   const prefix =
     context?.executionStarted && context?.isPartial
-      ? pendingStatusPrefix(theme, context, cwd)
+      ? pendingStatusPrefix(theme, context)
       : stackPrefix(theme);
-  let text = `${prefix}${toolLabel(theme, `${kind} `)}${theme.fg("accent", targetPath)}${theme.fg("dim", " · preview · ")}${diffSummary(total, theme, cwd)}`;
+  let text = `${prefix}${toolLabel(theme, `${kind} `)}${theme.fg("accent", targetPath)}${theme.fg("dim", " · preview · ")}${diffSummary(total, theme)}`;
   const maxShown = context?.expanded ? diffs.length : Math.min(1, diffs.length);
   const perDiffLimit = Math.max(
     4,
@@ -1475,8 +1458,8 @@ export function renderMutationCallPreview(
   for (let index = 0; index < maxShown; index++) {
     const diff = diffs[index]!;
     if (diffs.length > 1)
-      text += `\n${treeConnector(theme, "├", cwd)}${theme.fg("muted", `edit ${index + 1}/${diffs.length}`)} ${diffSummary(diff, theme, cwd)}`;
-    const stem = treeConnector(theme, "│", cwd);
+      text += `\n${treeConnector(theme, "├")}${theme.fg("muted", `edit ${index + 1}/${diffs.length}`)} ${diffSummary(diff, theme)}`;
+    const stem = treeConnector(theme, "│");
     const rendered = renderStructuredDiff(
       diff,
       theme,
@@ -1493,7 +1476,7 @@ export function renderMutationCallPreview(
   }
   const hidden = diffs.length - maxShown;
   if (hidden > 0)
-    text += `\n${treeConnector(theme, "└", cwd)}${theme.fg("muted", `… ${hidden} more edit block${hidden === 1 ? "" : "s"} · ctrl+o to expand`)}`;
+    text += `\n${treeConnector(theme, "└")}${theme.fg("muted", `… ${hidden} more edit block${hidden === 1 ? "" : "s"} · ctrl+o to expand`)}`;
   return makeTruncatedLines(text);
 }
 

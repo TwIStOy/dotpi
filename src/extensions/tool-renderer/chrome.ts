@@ -215,15 +215,15 @@ export function installToolExecutionRendererPatch(pi: ExtensionAPI): void {
   });
 }
 
-function prepareToolChromeTheme(theme: any, cwd?: string): void {
-  if (toolChromeMode(cwd) === "off") return;
+function prepareToolChromeTheme(theme: any): void {
+  if (toolChromeMode() === "off") return;
   captureDiffBackgroundTheme(theme);
 }
 
 let activeToolChromeCtx: ExtensionContext | undefined;
 
-function mutedHorizontalRule(theme: any, width: number, cwd?: string): string {
-  return subtleRule(theme, "─".repeat(stableRenderWidth(width, cwd)));
+function mutedHorizontalRule(theme: any, width: number): string {
+  return subtleRule(theme, "─".repeat(stableRenderWidth(width)));
 }
 
 function shouldOmitBottomToolChromeRule(core: string[]): boolean {
@@ -246,7 +246,7 @@ export function installToolChromePatch(): void {
       typeof this?.toolCallId !== "string"
     )
       return rendered;
-    const mode = toolChromeMode(this?.cwd ?? process.cwd());
+    const mode = toolChromeMode();
     if (mode === "off") return rendered;
     let start = 0;
     while (
@@ -258,8 +258,7 @@ export function installToolChromePatch(): void {
     while (end >= start && stripAnsi(rendered[end] ?? "").trim().length === 0)
       end--;
     if (start > end) return rendered;
-    const effectiveCwd = this?.cwd ?? process.cwd();
-    const renderWidth = stableRenderWidth(width, effectiveCwd);
+    const renderWidth = stableRenderWidth(width);
     const core = rendered.slice(start, end + 1).flatMap((line) => {
       // Pi's Text/Box components pad rows before trailing SGR reset codes.
       // Plain trimEnd() cannot see those spaces when ANSI comes after them;
@@ -276,7 +275,7 @@ export function installToolChromePatch(): void {
       this?.[TOOL_CHROME_THEME_SYMBOL] ??
       this?.ui?.theme ??
       (activeToolChromeCtx?.hasUI ? activeToolChromeCtx.ui.theme : undefined);
-    const rule = mutedHorizontalRule(activeTheme, width, effectiveCwd);
+    const rule = mutedHorizontalRule(activeTheme, width);
     return shouldOmitBottomToolChromeRule(core)
       ? [rule, ...core]
       : [rule, ...core, rule];
@@ -287,11 +286,11 @@ export function installToolChromePatch(): void {
 export function registerToolChromeEvents(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     activeToolChromeCtx = ctx;
-    if (ctx.hasUI) prepareToolChromeTheme(ctx.ui.theme, ctx.cwd);
+    if (ctx.hasUI) prepareToolChromeTheme(ctx.ui.theme);
   });
   pi.on("turn_start", (_event, ctx) => {
     activeToolChromeCtx = ctx;
-    if (ctx.hasUI) prepareToolChromeTheme(ctx.ui.theme, ctx.cwd);
+    if (ctx.hasUI) prepareToolChromeTheme(ctx.ui.theme);
   });
   pi.on("session_shutdown", () => {
     activeToolChromeCtx = undefined;

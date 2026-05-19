@@ -48,19 +48,19 @@ export function truncateAnsi(text: string, width: number): string {
   return truncateToWidth(text, Math.max(1, width), "");
 }
 
-export function stableRenderWidth(width: number, cwd?: string): number {
+export function stableRenderWidth(width: number): number {
   const safe = Math.max(1, Math.floor(width || 1));
-  return rightMarginGuardEnabled(cwd) && safe > 1 ? safe - 1 : safe;
+  return rightMarginGuardEnabled() && safe > 1 ? safe - 1 : safe;
 }
 
-export function terminalWidth(cwd?: string): number {
+export function terminalWidth(): number {
   const raw = Number(
     process.stdout.columns ||
       (process.stderr as any).columns ||
       process.env.COLUMNS ||
       120,
   );
-  const guarded = stableRenderWidth(raw, cwd);
+  const guarded = stableRenderWidth(raw);
   return Math.max(40, guarded);
 }
 

@@ -325,7 +325,7 @@ function toolBatchOutput(items: BatchToolItem[]): string {
   return lines.join("\n");
 }
 
-function renderToolBatchCallText(args: any, theme: any, cwd?: string): string {
+function renderToolBatchCallText(args: any, theme: any): string {
   const calls = normalizeBatchCalls(args?.calls);
   const lines = [
     stackPrefix(theme) +
@@ -346,12 +346,12 @@ function renderToolBatchCallText(args: any, theme: any, cwd?: string): string {
       truncated: false,
     };
     lines.push(
-      `${treeConnector(theme, index === calls.length - 1 ? "└" : "├", cwd)}${stackItemCallText(item, theme, cwd)}`,
+      `${treeConnector(theme, index === calls.length - 1 ? "└" : "├")}${stackItemCallText(item, theme)}`,
     );
   });
   if (calls.length > 12)
     lines.push(
-      `${treeConnector(theme, "└", cwd)}${theme.fg("muted", `… +${calls.length - 12} more`)}`,
+      `${treeConnector(theme, "└")}${theme.fg("muted", `… +${calls.length - 12} more`)}`,
     );
   return lines.join("\n");
 }
@@ -516,7 +516,7 @@ export function registerToolBatch(
     ) {
       if (isPartial)
         return makeTruncatedLines(
-          renderToolBatchCallText(context?.args, theme, context?.cwd ?? cwd),
+          renderToolBatchCallText(context?.args, theme),
         );
       const details = result.details as BatchToolDetails | undefined;
       if (!details?.items)
