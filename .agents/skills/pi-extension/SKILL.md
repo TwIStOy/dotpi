@@ -153,6 +153,33 @@ pi.registerCommand("hello", {
 });
 ```
 
+### Port OpenCode slash commands (template → user turn)
+
+OpenCode plugins register `config.command` entries with a `template` string and `$ARGUMENTS`. In Pi, mirror that with a template module and `pi.sendUserMessage`:
+
+```typescript
+// commands/my-command-template.ts
+export const MY_TEMPLATE = `Do the workflow...\n\n"$ARGUMENTS" — optional scope.`;
+export function buildMyPrompt(args: string): string {
+  const line = args.trim() || "none — full scope";
+  return MY_TEMPLATE.replace("$ARGUMENTS", line);
+}
+
+// index.ts
+pi.registerCommand("my-command", {
+  description: "...",
+  handler: async (args, ctx) => {
+    if (!ctx.isIdle()) {
+      ctx.ui.notify("Agent is busy.", "warning");
+      return;
+    }
+    pi.sendUserMessage(buildMyPrompt(args));
+  },
+});
+```
+
+Reference implementation: `src/extensions/dotcode-memory/commands/` (`self-improve-template.ts`, `reorganize-memory-template.ts`). Register long-running workflow commands **before** any early-return that disables the rest of the extension if the command should still exist when tools are off (e.g. `/memory-status`).
+
 ### Input interception
 ```typescript
 pi.on("input", async (event, ctx) => {
