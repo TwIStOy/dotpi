@@ -45,12 +45,12 @@ export function registerAgentTool(
 ) {
   pi.registerTool(
     defineTool({
-      name: "Agent",
-      label: "Agent",
+      name: "call_subagent",
+      label: "Call subagent",
       renderShell: "self",
       description: `Launch a new agent to handle complex, multi-step tasks autonomously.
 
-The Agent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
+The call_subagent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
 
 Available agents:
 ${buildAgentListText()}

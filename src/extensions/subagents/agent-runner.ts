@@ -28,7 +28,11 @@ import { preloadSkills, collectExtensionSkillRoots } from "./skill-loader.js";
 import { resolveBestModel } from "./model-resolver.js";
 import type { SubagentType, ThinkingLevel } from "./types.js";
 
-const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"];
+const EXCLUDED_TOOL_NAMES = [
+  "call_subagent",
+  "get_subagent_result",
+  "steer_subagent",
+];
 
 let defaultMaxTurns: number | undefined;
 

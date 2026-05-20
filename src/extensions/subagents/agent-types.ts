@@ -11,7 +11,11 @@ export const BUILTIN_TOOL_NAMES: string[] = [
   "ls",
 ];
 
-const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"];
+const EXCLUDED_TOOL_NAMES = [
+  "call_subagent",
+  "get_subagent_result",
+  "steer_subagent",
+];
 
 const MEMORY_TOOL_NAMES = ["read", "write", "edit"];
 const READONLY_MEMORY_TOOL_NAMES = ["read"];

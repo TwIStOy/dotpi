@@ -115,7 +115,7 @@ function buildExploreSection(
   if (use.length === 0 && avoid.length === 0) return "";
   return `### Explore subagent = contextual grep (internal)
 
-Use **Agent** with \`subagent_type="${ex.name}"\` as a **peer** capability, not a fallback. Fire in parallel for discovery.
+Use **call_subagent** with \`subagent_type="${ex.name}"\` as a **peer** capability, not a fallback. Fire in parallel for discovery.
 
 **Delegation trust:** once you launch Explore for a search, **do not** manually repeat the same search unless you intentionally skipped coverage.
 
@@ -141,7 +141,7 @@ Search **external** references (docs, OSS, upstream behaviour). Fire when unfami
 **Trigger phrases** (typical Librarian launches):
 ${use.map((s) => `- "${s}"`).join("\n")}
 
-Use **Agent** with \`subagent_type="${lib.name}"\`, usually \`run_in_background: true\`, with the same rich prompt structure as Explore (context, goal, downstream use, concrete search request).`;
+Use **call_subagent** with \`subagent_type="${lib.name}"\`, usually \`run_in_background: true\`, with the same rich prompt structure as Explore (context, goal, downstream use, concrete search request).`;
 }
 
 function buildDelegationTable(
@@ -189,7 +189,7 @@ ${avoid.map((s) => `- ${s}`).join("\n")}
 
 ### Pi usage pattern
 
-Briefly say you are consulting Oracle before invoking **Agent** with \`subagent_type="${o.name}"\`.
+Briefly say you are consulting Oracle before invoking **call_subagent** with \`subagent_type="${o.name}"\`.
 
 **Collect Oracle before your final answer** when implementation depends on Oracle’s direction.
 
@@ -213,7 +213,7 @@ function buildNonClaudePlannerSection(modelId: string): string {
 Multi-step or ambiguous work? **Consult Plan first** before large implementation.
 
 - Single-file / trivial fix → proceed directly.
-- Otherwise → **Agent** with \`subagent_type="Plan"\` **before** broad edits (match exact registry spelling from the delegation table).
+- Otherwise → **call_subagent** with \`subagent_type="Plan"\` **before** broad edits (match exact registry spelling from the delegation table).
 - Use **resume** on the same Plan agent id for follow-up questions.
 
 If anything is still ambiguous after Plan, ask the user instead of guessing.`;
@@ -232,7 +232,7 @@ function buildParallelDelegationSection(
 
   return `### Decompose and delegate (non-Claude)
 
-Your failure mode is doing large implementation yourself instead of splitting work across **Agent** calls.
+Your failure mode is doing large implementation yourself instead of splitting work across **call_subagent** calls.
 
 - Decompose into independent units; launch **multiple** \`run_in_background: true\` agents when work is parallelizable.
 - **general-purpose** carries tuned prompts and tools — use it for heavy implementation, not ad-hoc shortcuts.
@@ -244,9 +244,9 @@ Vague one-line delegations produce vague results.`;
 
 function buildPiDelegationGuide(enabled: { name: string; config: AgentConfig }[]): string {
   const types = enabled.map((e) => e.name).join(", ");
-  return `### Pi / dotpi — \`Agent\` instead of OpenCode \`task()\`
+  return `### Pi / dotpi — \`call_subagent\` instead of OpenCode \`task()\`
 
-OpenAgent combines **categories** + \`load_skills\` on \`task()\`. Pi uses **Agent** with:
+OpenAgent combines **categories** + \`load_skills\` on \`task()\`. Pi uses **call_subagent** with:
 
 - \`subagent_type\` — one of: ${types || "(none registered)"}
 - \`description\`, \`prompt\`, optional \`model\`, \`thinking\`, \`max_turns\`, \`run_in_background\`, \`resume\`, \`isolated\`, \`inherit_context\`, \`isolation\`
@@ -262,7 +262,7 @@ function buildHardBlocksSection(): string {
     "Commit without explicit user request — **never**",
     "Speculate about unread code — **never**",
     "Leave the repo broken after repeated failures — **never**",
-    "Delivering a final answer before collecting Oracle / background **Agent** results you depended on — **never**",
+    "Delivering a final answer before collecting Oracle / background **call_subagent** results you depended on — **never**",
   ];
   return `## Hard blocks (never violate)
 
@@ -343,7 +343,7 @@ export function buildRoutingDynamicAppendix(
 
   const chunks: string[] = [
     "## [Runtime] Routing dynamic appendix",
-    "*Generated at `before_agent_start` — mirrors Oh My OpenAgent `dynamic-agent-prompt-builder` sections (tools, agents, model branches, policies), adapted for Pi `Agent` / `get_subagent_result` / `steer_subagent`.*",
+    "*Generated at `before_agent_start` — mirrors Oh My OpenAgent `dynamic-agent-prompt-builder` sections (tools, agents, model branches, policies), adapted for Pi `call_subagent` / `get_subagent_result` / `steer_subagent`.*",
   ];
 
   const kt = buildKeyTriggersSection(enabled);

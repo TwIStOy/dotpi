@@ -50,7 +50,8 @@ export const OPENAI_STYLE_TOOL_NAMES = new Set([
   "Skill",
   "EnterPlanMode",
   "ExitPlanMode",
-  "Agent",
+  "call_subagent",
+  "Agent", // legacy transcript tool name (same as call_subagent)
   "get_subagent_result",
   "steer_subagent",
   "TaskCreate",
@@ -552,6 +553,7 @@ function summarizeGenericCall(name: string, args: any, theme: any): string {
           72,
         ),
       );
+    case "call_subagent":
     case "Agent":
       return theme.fg(
         "accent",

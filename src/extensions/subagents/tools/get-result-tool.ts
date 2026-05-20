@@ -11,7 +11,7 @@ export function registerGetResultTool(pi: ExtensionAPI, manager: AgentManager) {
       name: "get_subagent_result",
       label: "Get Agent Result",
       description:
-        "Check status and retrieve results from a background agent. Use the agent ID returned by Agent with run_in_background.",
+        "Check status and retrieve results from a background agent. Use the agent ID returned by call_subagent with run_in_background.",
       parameters: Type.Object({
         agent_id: Type.String({ description: "The agent ID to check." }),
         wait: Type.Optional(
