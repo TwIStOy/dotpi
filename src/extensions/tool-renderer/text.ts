@@ -2,6 +2,7 @@ import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { basename, extname } from "node:path";
 
 import { stableRenderWidth, stripAnsi } from "./ansi.js";
+import { displayPathUnderCwd } from "./paths.js";
 import {
   pendingStatusAnimation,
   stackToolCalls,
@@ -332,12 +333,17 @@ export function renderPathListPreview(
   return lines.join("\n");
 }
 
-export function readCallText(args: any, theme: any): string {
+export function readCallText(args: any, theme: any, cwd?: string): string {
+  const rawPath = args?.path ?? "";
+  const pathText =
+    typeof cwd === "string" && cwd
+      ? displayPathUnderCwd(String(rawPath), cwd)
+      : String(rawPath);
   const range =
     args?.offset || args?.limit
       ? `:${args.offset ?? 1}${args.limit ? `-${Number(args.offset ?? 1) + Number(args.limit) - 1}` : ""}`
       : "";
-  return `${toolLabel(theme, "Read ")}${theme.fg("accent", `${args?.path ?? ""}${range}`)}`;
+  return `${toolLabel(theme, "Read ")}${theme.fg("accent", `${pathText}${range}`)}`;
 }
 
 export function bashCallText(args: any, theme: any): string {

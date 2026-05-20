@@ -5,8 +5,10 @@ import registerQuestions from "./questions.js";
 
 export default function initQuestions(pi: ExtensionAPI): void {
   pi.on("before_agent_start", async (event) => {
-    event.systemPrompt =
-      event.systemPrompt + "\n\n" + QUESTIONS_SYSTEM_APPENDIX;
+    // Pi only applies `systemPrompt` from the return value (mutating `event` is ignored).
+    return {
+      systemPrompt: event.systemPrompt + "\n\n" + QUESTIONS_SYSTEM_APPENDIX,
+    };
   });
   registerQuestions(pi);
 }

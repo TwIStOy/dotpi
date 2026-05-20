@@ -283,6 +283,9 @@ export function renderStatusLine(
   );
   const filled = percent === null ? 0 : Math.round(gapWidth * (percent / 100));
   const empty = Math.max(0, gapWidth - filled);
-  const bar = " ".repeat(empty) + theme.fg("warning", "─".repeat(filled));
+  const bar =
+    percent === null
+      ? " ".repeat(gapWidth)
+      : `${theme.fg("error", "─".repeat(empty))}${theme.fg("warning", "─".repeat(filled))}`;
   return truncateToWidth(`${leftColored} ${bar} ${right}`, width, "");
 }

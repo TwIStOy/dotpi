@@ -164,10 +164,11 @@ export default function initPrimaryAgent(pi: ExtensionAPI): void {
     if (preset.dynamicAppendix === "routing") {
       systemPrompt = `${preset.prompt}\n\n---\n\n${buildRoutingDynamicAppendix(pi, ctx as ExtensionContext)}`;
     }
-    event.systemPrompt = systemPrompt;
     if (preset.toolPolicy) {
       applyPrimaryAgentToolPolicy(pi, ctx as ExtensionContext, preset.toolPolicy);
     }
+    // Pi only applies `systemPrompt` from the handler return value (mutating `event` is ignored).
+    return { systemPrompt };
   });
 
   pi.registerCommand("primary-agent", {

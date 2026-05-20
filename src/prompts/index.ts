@@ -10,7 +10,8 @@ export function registerPrompts(pi: ExtensionAPI) {
     if (!modelId) return;
     const prompt = resolvePrompt(modelId);
     if (prompt) {
-      event.systemPrompt = event.systemPrompt + "\n\n" + prompt;
+      // Pi only applies `systemPrompt` from the return value (mutating `event` is ignored).
+      return { systemPrompt: event.systemPrompt + "\n\n" + prompt };
     }
   });
 }

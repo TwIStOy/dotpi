@@ -15,6 +15,7 @@ import {
   suppressReadOnlyBashDiffOutput,
   type StructuredDiff,
 } from "./diff.js";
+import { displayPathUnderCwd } from "./paths.js";
 import {
   bashLiveOutputDelayMs,
   bashLiveTailLines,
@@ -170,7 +171,12 @@ export function registerRead(pi: ExtensionAPI, agent: any, cwd: string): void {
       );
     },
     renderCall(args: any, theme: any, context: any) {
-      return renderPendingCall(readCallText(args ?? {}, theme), theme, context);
+      const effectiveCwd = context?.cwd ?? cwd;
+      return renderPendingCall(
+        readCallText(args ?? {}, theme, effectiveCwd),
+        theme,
+        context,
+      );
     },
     renderResult(
       result: any,
@@ -189,7 +195,8 @@ export function registerRead(pi: ExtensionAPI, agent: any, cwd: string): void {
           context,
           cwd,
         );
-      const call = readCallText(context?.args ?? {}, theme);
+      const effectiveCwd = context?.cwd ?? cwd;
+      const call = readCallText(context?.args ?? {}, theme, effectiveCwd);
       if (isPartial) return renderPendingDetail("reading…", theme);
       clearBlink(context);
       const errored = Boolean(context?.isError || result?.isError);
@@ -412,6 +419,7 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
     renderCall(args: any, theme: any, context: any) {
       const effectiveCwd = context?.cwd ?? cwd;
       const targetPath = args?.path ?? args?.file_path ?? "";
+      const pathLabel = displayPathUnderCwd(String(targetPath), effectiveCwd);
       if (context?.argsComplete) {
         const diffs = editOperationsFromArgs(args).map((edit) => ({
           ...buildStructuredDiff(edit.oldText, edit.newText),
@@ -428,7 +436,7 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
         if (componentHasVisibleLines(previewComponent)) return previewComponent;
       }
       return renderPendingCall(
-        `${toolLabel(theme, "Edit ")}${theme.fg("accent", targetPath)}`,
+        `${toolLabel(theme, "Edit ")}${theme.fg("accent", pathLabel)}`,
         theme,
         context,
       );
@@ -441,7 +449,11 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
     ) {
       const args = context?.args ?? {};
       const targetPath = args.path ?? args.file_path ?? "";
-      const call = `${toolLabel(theme, "Edit ")}${theme.fg("accent", targetPath)}`;
+      const pathLabel = displayPathUnderCwd(
+        String(targetPath),
+        context?.cwd ?? cwd,
+      );
+      const call = `${toolLabel(theme, "Edit ")}${theme.fg("accent", pathLabel)}`;
       if (isPartial) return renderPendingDetail("editing…", theme);
       clearBlink(context);
       const structured = result?.details?.diff as StructuredDiff | undefined;
@@ -457,7 +469,7 @@ export function registerEdit(pi: ExtensionAPI, agent: any, cwd: string): void {
         : theme.fg("success", "applied");
       let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       if (structured)
-        text += `\n${renderStructuredDiff(structured, theme, expanded, context?.cwd ?? cwd, undefined, targetPath)}`;
+        text += `\n${renderStructuredDiff(structured, theme, expanded, context?.cwd ?? cwd, undefined, pathLabel)}`;
       return makeTruncatedLines(text);
     },
   });
@@ -503,6 +515,7 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
     renderCall(args: any, theme: any, context: any) {
       const effectiveCwd = context?.cwd ?? cwd;
       const targetPath = args?.path ?? args?.file_path ?? "";
+      const pathLabel = displayPathUnderCwd(String(targetPath), effectiveCwd);
       const lineTotal = lineCount(args?.content ?? "");
       if (context?.argsComplete && typeof args?.content === "string") {
         const before = existingSmallTextOrUndefined(
@@ -526,7 +539,7 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
         if (componentHasVisibleLines(previewComponent)) return previewComponent;
       }
       return renderPendingCall(
-        `${toolLabel(theme, "Write ")}${theme.fg("accent", targetPath)} ${theme.fg("dim", `· ${lineTotal} lines`)}`,
+        `${toolLabel(theme, "Write ")}${theme.fg("accent", pathLabel)} ${theme.fg("dim", `· ${lineTotal} lines`)}`,
         theme,
         context,
       );
@@ -539,9 +552,13 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
     ) {
       const args = context?.args ?? {};
       const targetPath = args.path ?? args.file_path ?? "";
+      const pathLabel = displayPathUnderCwd(
+        String(targetPath),
+        context?.cwd ?? cwd,
+      );
       const lineTotal = lineCount(args.content ?? "");
       const label = result?.details?.diffWasNewFile ? "Create " : "Write ";
-      const call = `${toolLabel(theme, label)}${theme.fg("accent", targetPath)} ${theme.fg("dim", `· ${lineTotal} lines`)}`;
+      const call = `${toolLabel(theme, label)}${theme.fg("accent", pathLabel)} ${theme.fg("dim", `· ${lineTotal} lines`)}`;
       if (isPartial) return renderPendingDetail("writing…", theme);
       clearBlink(context);
       const structured = result?.details?.diff as StructuredDiff | undefined;
@@ -557,7 +574,7 @@ export function registerWrite(pi: ExtensionAPI, agent: any, cwd: string): void {
         : theme.fg("success", "written");
       let text = `${toolLinePrefix(theme, false)}${call}${theme.fg("dim", " · ")}${summary}`;
       if (structured)
-        text += `\n${renderStructuredDiff(structured, theme, expanded, context?.cwd ?? cwd, undefined, targetPath)}`;
+        text += `\n${renderStructuredDiff(structured, theme, expanded, context?.cwd ?? cwd, undefined, pathLabel)}`;
       return makeTruncatedLines(text);
     },
   });

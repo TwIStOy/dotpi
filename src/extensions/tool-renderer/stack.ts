@@ -125,8 +125,12 @@ export function contextToolCallId(
   );
 }
 
-export function stackItemCallText(item: StackItem, theme: any): string {
-  if (item.toolName === "read") return readCallText(item.args, theme);
+export function stackItemCallText(
+  item: StackItem,
+  theme: any,
+  cwd?: string,
+): string {
+  if (item.toolName === "read") return readCallText(item.args, theme, cwd);
   if (item.toolName === "bash") return bashCallText(item.args, theme);
   return readOnlyCallText(item.toolName, item.args, theme);
 }
@@ -215,7 +219,7 @@ export function renderStackItemText(
   branch = "├",
 ): string {
   const typedBranch = branch as TreeBranch;
-  let text = `${treeConnector(theme, typedBranch)}${stackItemCallText(item, theme)}${theme.fg("dim", " · ")}${stackItemSummary(item, theme)}`;
+  let text = `${treeConnector(theme, typedBranch)}${stackItemCallText(item, theme, cwd)}${theme.fg("dim", " · ")}${stackItemSummary(item, theme)}`;
   if (expanded) {
     const previewText = stackItemPreview(item, theme, expanded, cwd);
     if (previewText) {

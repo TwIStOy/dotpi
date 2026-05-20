@@ -33,6 +33,7 @@ import {
   pendingStatusPrefix,
   type TruncatedLines,
 } from "./text.js";
+import { displayPathUnderCwd } from "./paths.js";
 
 const DIFF_SPLIT_MIN_WIDTH = 132;
 const DIFF_SPLIT_MIN_CODE_WIDTH = 24;
@@ -1442,12 +1443,13 @@ export function renderMutationCallPreview(
   if (context?.executionStarted && !context?.isPartial) return makeEmpty();
   if (!toolRendererSettings.mutationCallPreview || diffs.length === 0)
     return makeEmpty();
+  const pathLabel = displayPathUnderCwd(targetPath, cwd);
   const total = summarizeDiffs(diffs);
   const prefix =
     context?.executionStarted && context?.isPartial
       ? pendingStatusPrefix(theme, context)
       : stackPrefix(theme);
-  let text = `${prefix}${toolLabel(theme, `${kind} `)}${theme.fg("accent", targetPath)}${theme.fg("dim", " · preview · ")}${diffSummary(total, theme)}`;
+  let text = `${prefix}${toolLabel(theme, `${kind} `)}${theme.fg("accent", pathLabel)}${theme.fg("dim", " · preview · ")}${diffSummary(total, theme)}`;
   const maxShown = context?.expanded ? diffs.length : Math.min(1, diffs.length);
   const perDiffLimit = Math.max(
     4,
@@ -1466,7 +1468,7 @@ export function renderMutationCallPreview(
       Boolean(context?.expanded),
       cwd,
       perDiffLimit,
-      targetPath,
+      pathLabel,
       visibleWidth(stem),
     );
     text += `\n${rendered

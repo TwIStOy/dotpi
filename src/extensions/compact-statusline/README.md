@@ -3,7 +3,7 @@
 Single-line status: repo / model / thinking level / context remainder bar / right-hand percentage; optional subagent badge and Z.ai quota. When a **primary-agent** preset is active, its **label** appears in **success** color **before** the project name.
 
 - **Left**: optional **primary-agent preset label** (green/success), project name, branch badge (`🌳` linked worktree, `🦀` default trunk `main`/`master`, `🔀` other branches) and optional dirty `*`, model label, thinking level, context window size; when the current model is **Z.ai**, appends `zai <quota%>` and a truncated reset countdown (same data as `ZaiUsageCache` / `/zai-usage`).
-- **Middle**: `─` bar sized by remaining context fraction.
+- **Middle**: `─` bar: **used** context (left) in **error/red**, **remaining** (right) in **warning**; when usage is unknown, the gap stays blank.
 - **Right**: remainder percentage; subagent name from parent env `PI_SUBAGENT_CHILD_AGENT` / `PI_SUBAGENT_CHILD_COLOR`, or the **bridge** below.
 
 **Mechanics**: `ctx.ui.setWidget("dotpi-compact-statusline", …)`; whether the built-in footer is hidden is controlled by `REPLACE_BUILTIN_FOOTER` in **`settings.ts`**.

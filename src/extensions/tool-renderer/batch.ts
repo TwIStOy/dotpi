@@ -325,7 +325,11 @@ function toolBatchOutput(items: BatchToolItem[]): string {
   return lines.join("\n");
 }
 
-function renderToolBatchCallText(args: any, theme: any): string {
+function renderToolBatchCallText(
+  args: any,
+  theme: any,
+  displayCwd: string,
+): string {
   const calls = normalizeBatchCalls(args?.calls);
   const lines = [
     stackPrefix(theme) +
@@ -346,7 +350,7 @@ function renderToolBatchCallText(args: any, theme: any): string {
       truncated: false,
     };
     lines.push(
-      `${treeConnector(theme, index === calls.length - 1 ? "└" : "├")}${stackItemCallText(item, theme)}`,
+      `${treeConnector(theme, index === calls.length - 1 ? "└" : "├")}${stackItemCallText(item, theme, displayCwd)}`,
     );
   });
   if (calls.length > 12)
@@ -516,7 +520,7 @@ export function registerToolBatch(
     ) {
       if (isPartial)
         return makeTruncatedLines(
-          renderToolBatchCallText(context?.args, theme),
+          renderToolBatchCallText(context?.args, theme, context?.cwd ?? cwd),
         );
       const details = result.details as BatchToolDetails | undefined;
       if (!details?.items)
