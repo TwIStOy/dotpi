@@ -17,6 +17,29 @@ const explore: AgentConfig = {
   extensions: true,
   skills: true,
   model: "glm-4.7-flash",
+  routingHints: {
+    cost: "FREE",
+    category: "exploration",
+    keyTrigger:
+      "2+ modules involved → fire `Explore` agents in parallel (`run_in_background: true`)",
+    triggers: [
+      {
+        domain: "Explore",
+        trigger:
+          "Find existing codebase structure, patterns and styles (internal contextual search)",
+      },
+    ],
+    useWhen: [
+      "Multiple search angles needed",
+      "Unfamiliar module structure",
+      "Cross-layer pattern discovery",
+    ],
+    avoidWhen: [
+      "You know exactly what to search",
+      "Single keyword/pattern suffices",
+      "Known file location",
+    ],
+  },
   systemPrompt: loadSubagentPrompt("explore"),
   promptMode: "replace",
   isDefault: true,

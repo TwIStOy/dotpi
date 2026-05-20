@@ -12,6 +12,17 @@ const plan: AgentConfig = {
   builtinToolNames: READ_ONLY_TOOLS,
   extensions: true,
   skills: true,
+  routingHints: {
+    cost: "CHEAP",
+    category: "other",
+    triggers: [
+      {
+        domain: "Plan",
+        trigger:
+          "Implementation strategy, step-by-step plans, architectural trade-offs before coding",
+      },
+    ],
+  },
   systemPrompt: loadSubagentPrompt("plan"),
   promptMode: "replace",
   isDefault: true,

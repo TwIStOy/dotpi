@@ -52,6 +52,13 @@ export function getAvailableTypes(): string[] {
     .map(([name]) => name);
 }
 
+/** Enabled agents for extensions (e.g. primary-agent dynamic prompt). */
+export function listEnabledAgents(): { name: string; config: AgentConfig }[] {
+  return [...agents.entries()]
+    .filter(([_, config]) => config.enabled !== false)
+    .map(([name, config]) => ({ name, config }));
+}
+
 export function buildAgentListText(): string {
   return [...agents.entries()]
     .filter(([_, config]) => config.enabled !== false)

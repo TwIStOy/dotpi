@@ -7,6 +7,7 @@ import {
   COMPACT_STATUSLINE_ENABLED,
   REPLACE_BUILTIN_FOOTER,
 } from "./settings.js";
+import { PRIMARY_AGENT_CHANGED_EVENT } from "./constants.js";
 import {
   makeFallbackGitState,
   refreshGitState,
@@ -19,7 +20,8 @@ const INSTALL_GUARD = Symbol.for("dotpi.compact-statusline.installed");
 
 /**
  * Compact statusline: repo / model / thinking level / context bar; optional
- * subagent badge via `SUBAGENT_STATUSLINE_BRIDGE_SYMBOL` or `PI_SUBAGENT_*` env.
+ * subagent badge via `SUBAGENT_STATUSLINE_BRIDGE_SYMBOL` or `PI_SUBAGENT_*` env;
+ * primary-agent preset label when `PRIMARY_AGENT_STATUSLINE_BRIDGE_SYMBOL` is registered.
  */
 export default function initCompactStatusline(pi: ExtensionAPI): void {
   if (!COMPACT_STATUSLINE_ENABLED) return;
@@ -33,6 +35,10 @@ export default function initCompactStatusline(pi: ExtensionAPI): void {
   let refreshInFlight: Promise<GitState> | undefined;
 
   const requestRender = () => activeTui?.requestRender();
+
+  pi.events.on(PRIMARY_AGENT_CHANGED_EVENT, () => {
+    requestRender();
+  });
 
   const refreshGit = (ctx: ExtensionContext) => {
     if (refreshInFlight) return refreshInFlight;

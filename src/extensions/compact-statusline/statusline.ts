@@ -6,6 +6,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { subagentStatuslineMarker } from "./agent-statusline.js";
+import { readPrimaryAgentStatuslineBridge } from "./bridges.js";
 import { GIT_REFRESH_TIMEOUT_MS, SHOW_DIRTY_MARKER } from "./settings.js";
 import {
   getZaiUsageSnapshot,
@@ -13,6 +14,20 @@ import {
 } from "../../providers/zai/status.js";
 
 const ZAI_ETA_DISPLAY_MAX = 14;
+const PRIMARY_AGENT_STATUSLINE_LABEL_MAX = 22;
+
+function primaryAgentStatuslineLabel(
+  ctx: ExtensionContext,
+): string | undefined {
+  const sessionId = ctx.sessionManager.getSessionId();
+  const raw =
+    readPrimaryAgentStatuslineBridge()?.getCurrentPrimaryAgentDisplayName(
+      sessionId,
+    );
+  const trimmed = raw?.trim();
+  if (!trimmed) return undefined;
+  return truncateToWidth(trimmed, PRIMARY_AGENT_STATUSLINE_LABEL_MAX, "…");
+}
 
 function truncateZaiEta(s: string): string {
   if (s.length <= ZAI_ETA_DISPLAY_MAX) return s;
@@ -227,7 +242,11 @@ export function renderStatusLine(
   theme: Pick<Theme, "fg">,
 ): string {
   const { label: contextLabel, percent } = statuslineContextInfo(ctx);
-  const projectChunk = `${git.projectName}${gitBadge(git, SHOW_DIRTY_MARKER)} ${formatModelName(ctx)}`;
+  const gitAndProject = `${git.projectName}${gitBadge(git, SHOW_DIRTY_MARKER)}`;
+  const modelChunk = formatModelName(ctx);
+  const primaryLabel = primaryAgentStatuslineLabel(ctx);
+  const primaryPlainPrefix = primaryLabel ? `${primaryLabel} ` : "";
+  const projectChunk = `${primaryPlainPrefix}${gitAndProject} ${modelChunk}`;
   const statusSeparator = " / ";
   const thinkingLevel = normalizeThinkingLevel(pi.getThinkingLevel());
   const thinkingChunk = thinkingLevel;
@@ -249,7 +268,11 @@ export function renderStatusLine(
           ? "warning"
           : "success";
   const separatorColored = theme.fg("muted", statusSeparator);
-  const leftColored = `${theme.fg("accent", projectChunk)}${separatorColored}${theme.fg(THINKING_TOKEN[thinkingLevel], thinkingChunk)}${theme.fg("accent", contextChunk)}${zaiColored}`;
+  const leftColored =
+    (primaryLabel
+      ? `${theme.fg("success", `${primaryLabel} `)}`
+      : "") +
+    `${theme.fg("accent", `${gitAndProject} `)}${theme.fg("accent", modelChunk)}${separatorColored}${theme.fg(THINKING_TOKEN[thinkingLevel], thinkingChunk)}${theme.fg("accent", contextChunk)}${zaiColored}`;
   const right = subagentMarker
     ? `${theme.fg(percentColor, percentPlain)} ${subagentMarker.styled}`
     : theme.fg(percentColor, percentPlain);

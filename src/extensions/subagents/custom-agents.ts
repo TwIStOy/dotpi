@@ -2,7 +2,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join, resolve, dirname } from "node:path";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_TOOL_NAMES } from "./agent-types.js";
-import type { AgentConfig, MemoryScope, ThinkingLevel } from "./types.js";
+import type {
+  AgentConfig,
+  MemoryScope,
+  SubagentRoutingHints,
+  ThinkingLevel,
+} from "./types.js";
 
 export function loadCustomAgents(
   cwd: string,
@@ -100,6 +105,7 @@ function loadFromDir(
       isolation: fm.isolation === "worktree" ? "worktree" : undefined,
       enabled: fm.enabled !== false,
       source,
+      routingHints: parseRoutingHints(fm),
     });
   }
 }
@@ -134,6 +140,85 @@ function csvListOptional(val: unknown): string[] | undefined {
 
 function parseMemory(val: unknown): MemoryScope | undefined {
   if (val === "user" || val === "project" || val === "local") return val;
+  return undefined;
+}
+
+function parseRoutingCost(
+  val: unknown,
+): SubagentRoutingHints["cost"] | undefined {
+  if (val === "FREE" || val === "CHEAP" || val === "EXPENSIVE") return val;
+  return undefined;
+}
+
+function parseRoutingCategory(
+  val: unknown,
+): SubagentRoutingHints["category"] | undefined {
+  if (
+    val === "utility" ||
+    val === "exploration" ||
+    val === "advisor" ||
+    val === "other"
+  ) {
+    return val;
+  }
+  return undefined;
+}
+
+function parseRoutingHints(
+  fm: Record<string, unknown>,
+): SubagentRoutingHints | undefined {
+  const raw = fm.routing_hints ?? fm.routingHints;
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const obj = raw as Record<string, unknown>;
+  const cost = parseRoutingCost(obj.cost);
+  const category = parseRoutingCategory(obj.category);
+  if (cost == null || category == null) {
+    return undefined;
+  }
+
+  const keyTrigger = str(obj.key_trigger ?? obj.keyTrigger);
+
+  const triggersRaw = obj.triggers;
+  const triggers: SubagentRoutingHints["triggers"] = [];
+  if (Array.isArray(triggersRaw)) {
+    for (const item of triggersRaw) {
+      if (item == null || typeof item !== "object" || Array.isArray(item)) {
+        continue;
+      }
+      const t = item as Record<string, unknown>;
+      const domain = str(t.domain);
+      const trigger = str(t.trigger);
+      if (domain && trigger) {
+        triggers.push({ domain, trigger });
+      }
+    }
+  }
+
+  const useWhen = parseStringList(obj.use_when ?? obj.useWhen);
+  const avoidWhen = parseStringList(obj.avoid_when ?? obj.avoidWhen);
+
+  return {
+    cost,
+    category,
+    ...(keyTrigger ? { keyTrigger } : {}),
+    triggers,
+    ...(useWhen?.length ? { useWhen } : {}),
+    ...(avoidWhen?.length ? { avoidWhen } : {}),
+  };
+}
+
+function parseStringList(val: unknown): string[] | undefined {
+  if (val == null) return undefined;
+  if (Array.isArray(val)) {
+    const out = val.filter((x): x is string => typeof x === "string" && x.trim() !== "");
+    return out.length > 0 ? out : undefined;
+  }
+  if (typeof val === "string") {
+    const s = val.trim();
+    return s ? [s] : undefined;
+  }
   return undefined;
 }
 

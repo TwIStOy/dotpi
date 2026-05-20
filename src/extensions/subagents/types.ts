@@ -17,6 +17,21 @@ export type MemoryScope = "user" | "project" | "local";
 
 export type IsolationMode = "worktree";
 
+/**
+ * Optional hints for the primary-agent **Routing** preset’s dynamic appendix
+ * (tables aligned with Oh My OpenAgent `AgentPromptMetadata`). When omitted,
+ * Routing falls back to generic rows derived from `description` / `trigger`.
+ */
+export type SubagentRoutingHints = {
+  cost: "FREE" | "CHEAP" | "EXPENSIVE";
+  /** OMO-style category; `utility` rows are omitted from the cost-sorted agent table in Routing */
+  category: "utility" | "exploration" | "advisor" | "other";
+  keyTrigger?: string;
+  triggers: { domain: string; trigger: string }[];
+  useWhen?: string[];
+  avoidWhen?: string[];
+};
+
 export interface AgentConfig {
   name: string;
   displayName?: string;
@@ -39,6 +54,8 @@ export interface AgentConfig {
   isDefault?: boolean;
   enabled?: boolean;
   source?: "default" | "project" | "global" | "extension";
+  /** Primary-agent Routing appendix: cost, triggers, use/avoid when, etc. */
+  routingHints?: SubagentRoutingHints;
 }
 
 export type JoinMode = "async" | "group" | "smart";

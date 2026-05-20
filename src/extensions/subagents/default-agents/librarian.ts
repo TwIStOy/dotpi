@@ -17,6 +17,26 @@ const librarian: AgentConfig = {
   extensions: true,
   skills: true,
   model: "glm-4.7-flash",
+  routingHints: {
+    cost: "CHEAP",
+    category: "exploration",
+    keyTrigger:
+      "External library/source mentioned → fire `Librarian` in background (`run_in_background: true`)",
+    triggers: [
+      {
+        domain: "Librarian",
+        trigger:
+          "Unfamiliar packages/libraries, weird dependency behaviour, OSS usage examples",
+      },
+    ],
+    useWhen: [
+      "How do I use [library]?",
+      "What's the best practice for [framework feature]?",
+      "Why does [external dependency] behave this way?",
+      "Find examples of [library] usage",
+      "Working with unfamiliar npm/pip/cargo packages",
+    ],
+  },
   systemPrompt: loadSubagentPrompt("librarian", {
     CURRENT_YEAR: String(new Date().getFullYear()),
   }),
