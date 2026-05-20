@@ -425,6 +425,21 @@ class CompactLines {
   }
 }
 
+function textContent(result: any): string {
+  if (!result?.content) return "";
+  if (typeof result.content === "string") return result.content;
+  if (Array.isArray(result.content)) {
+    return result.content
+      .map((c: any) => (typeof c === "string" ? c : c?.text ?? ""))
+      .join("");
+  }
+  return "";
+}
+
+function extractFirstErrorLine(result: any): string {
+  return textContent(result).split(/\r?\n/)[0] || "";
+}
+
 function compactLines(getLines: (width: number) => string[]): CompactLines {
   return new CompactLines(getLines);
 }
@@ -1398,15 +1413,20 @@ export default function registerQuestions(pi: ExtensionAPI): void {
             return undefined;
           }
         })();
+        const errored = Boolean(context?.isError);
         const title = request?.header ?? "Question";
         const prefix =
           details && "answers" in details
             ? theme.fg("success", "● ")
-            : theme.fg("warning", "● ");
+            : errored
+              ? theme.fg("error", "● ")
+              : theme.fg("warning", "● ");
         const state =
           details && "answers" in details
             ? theme.fg("success", "answered")
-            : theme.fg("warning", "cancelled");
+            : errored
+              ? theme.fg("error", extractFirstErrorLine(result) || "failed")
+              : theme.fg("warning", "cancelled");
         const expandHint =
           details && "answers" in details && !options?.expanded
             ? theme.fg("dim", " · ctrl+o to expand")
