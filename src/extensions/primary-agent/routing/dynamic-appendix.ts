@@ -22,7 +22,17 @@ type ToolCategory =
   | "search"
   | "session"
   | "command"
+  | "memory"
+  | "journal"
   | "other";
+
+function isMemoryToolName(name: string): boolean {
+  return name.startsWith("memory-") || name.startsWith("memory_");
+}
+
+function isJournalToolName(name: string): boolean {
+  return name.startsWith("journal-") || name.startsWith("journal_");
+}
 
 function categorizeTool(name: string): ToolCategory {
   if (name.startsWith("lsp_")) return "lsp";
@@ -30,12 +40,16 @@ function categorizeTool(name: string): ToolCategory {
   if (name === "grep" || name === "find" || name === "glob") return "search";
   if (name.startsWith("session_")) return "session";
   if (name === "skill") return "command";
+  if (isMemoryToolName(name)) return "memory";
+  if (isJournalToolName(name)) return "journal";
   return "other";
 }
 
 function getToolsPromptDisplay(toolNames: string[]): string {
   const cats = toolNames.map((name) => ({ name, category: categorizeTool(name) }));
   const searchTools = cats.filter((t) => t.category === "search");
+  const memoryTools = cats.filter((t) => t.category === "memory");
+  const journalTools = cats.filter((t) => t.category === "journal");
   const lsp = cats.some((t) => t.category === "lsp");
   const ast = cats.some((t) => t.category === "ast");
   const parts: string[] = [];
@@ -44,7 +58,42 @@ function getToolsPromptDisplay(toolNames: string[]): string {
   }
   if (lsp) parts.push("`lsp_*`");
   if (ast) parts.push("`ast_grep*`");
-  return parts.length > 0 ? parts.join(", ") : "(no search/lsp/ast tools detected)";
+  if (memoryTools.length > 0) {
+    parts.push(
+      memoryTools.length === 1
+        ? `\`${memoryTools[0]!.name}\` (+ other \`memory-*\`)`
+        : "`memory-*`",
+    );
+  }
+  if (journalTools.length > 0) {
+    parts.push(
+      journalTools.length === 1
+        ? `\`${journalTools[0]!.name}\` (+ other \`journal-*\`)`
+        : "`journal-*`",
+    );
+  }
+  return parts.length > 0
+    ? parts.join(", ")
+    : "(no search/lsp/ast/memory tools detected)";
+}
+
+function buildGraphMemoryToolRows(toolNames: string[]): string[] {
+  const memory = toolNames.filter(isMemoryToolName).sort();
+  const journal = toolNames.filter(isJournalToolName).sort();
+  const rows: string[] = [];
+  if (memory.length > 0) {
+    const list = memory.map((n) => `\`${n}\``).join(", ");
+    rows.push(
+      `- ${list} — **graph memory (dotcode)** — URI-addressed persistent memory shared with the dotcode app. On a new session, \`memory-read\` \`system://boot\` before other work. Use \`memory-search\` with keywords when you do not know the URI; do not invent \`domain://\` paths.`,
+    );
+  }
+  if (journal.length > 0) {
+    const list = journal.map((n) => `\`${n}\``).join(", ");
+    rows.push(
+      `- ${list} — **journal** — append-only project log for discoveries, decisions, and failed attempts.`,
+    );
+  }
+  return rows;
 }
 
 const COST_ORDER: Record<SubagentRoutingHints["cost"], number> = {
@@ -76,11 +125,15 @@ function buildToolSelectionTable(
 ): string {
   const toolNames = pi.getAllTools().map((t) => t.name);
   const toolLine = getToolsPromptDisplay(toolNames);
+  const graphRows = buildGraphMemoryToolRows(toolNames);
 
   const rows: string[] = ["### Tool & agent selection", ""];
   rows.push(
     `- ${toolLine} — **direct tools** — use when scope is clear and delegation overhead is not worth it.`,
   );
+  for (const row of graphRows) {
+    rows.push(row);
+  }
 
   const sorted = [...enabled]
     .map((e) => ({ ...e, meta: routingHintsFor(e.config) }))

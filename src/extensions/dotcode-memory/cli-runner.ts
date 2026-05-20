@@ -15,6 +15,10 @@ function extensionDir(): string {
   return dirname(fileURLToPath(import.meta.url));
 }
 
+export function getDotcodeBinaryPath(): string {
+  return findBinary();
+}
+
 function findBinary(): string {
   if (cachedBinaryPath) return cachedBinaryPath;
 

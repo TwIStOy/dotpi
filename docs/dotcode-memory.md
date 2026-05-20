@@ -1,0 +1,82 @@
+# dotcode-memory (dotpi extension)
+
+The **dotcode-memory** extension connects Pi Coding Agent sessions to the same graph memory and journal database used by the [dotcode](https://github.com/) desktop app. Agents read and write memories through the `dotcode` CLI; there is no separate in-process database in dotpi.
+
+## Requirements
+
+- **dotcode binary** on `PATH`, or:
+  - **`DOTCODE_CLI`** — absolute path to the `dotcode` executable, or
+  - A local build under the dotcode repo (`tool/target/release/dotcode` or `result/bin/dotcode`) when developing monorepo-style layouts.
+
+If the binary is missing, dotpi shows a **one-time warning per process** on the first `session_start` (when the extension is enabled).
+
+## Enable / disable
+
+| Mechanism | Effect |
+|-----------|--------|
+| Default | Extension **enabled** |
+| Pi settings `dotcodeMemory.enabled: false` | No tools, no memory/journal system prompt appendix |
+| `DOTPI_DOTCODE_MEMORY=0` (or `false` / `off`) | Disabled for the whole process before any session |
+
+Settings key (in project or user Pi settings, via `settingsManager.getProjectSettings()`):
+
+```json
+{
+  "dotcodeMemory": {
+    "enabled": true
+  }
+}
+```
+
+See `src/extensions/dotcode-memory/settings.ts` for `DOTCODE_MEMORY_SETTINGS_KEY`.
+
+## Initialization order
+
+dotpi loads extensions from `src/extensions/index.ts`. Relevant order:
+
+1. **Subagents**, **tool-renderer**, **primary-agent** (Routing preset + dynamic appendix)
+2. **dotcode-memory** — registers tools on `session_start` when enabled; appends `<memory_instructions>` / `<journal_instructions>` on `before_agent_start`
+3. **questions**
+
+Memory tools must be registered before the Routing preset’s `before_agent_start` builds the dynamic appendix, so the appendix can list `memory-*` and `journal-*` tools when they are present.
+
+## Tools
+
+All tools invoke `dotcode --json …` (see `cli-runner.ts`).
+
+### Memory (`memory-*`)
+
+| Tool | Purpose |
+|------|---------|
+| `memory-read` | Read node by URI or system URI (`system://boot`, `system://index`, …) |
+| `memory-create` | Create child under parent URI |
+| `memory-update` | Patch, append, or update metadata |
+| `memory-delete` | Delete node by URI |
+| `memory-search` | BM25-style search — use when URI is unknown |
+| `memory-list` | Tree listing, optional domain filter |
+| `memory-alias` | Create/remove alias paths |
+| `memory-triggers` | Glossary keywords for lateral recall |
+| `memory-history` | Version history for a node |
+| `memory-domains` | List domains and counts |
+
+### Journal (`journal-*`)
+
+| Tool | Purpose |
+|------|---------|
+| `journal-write` | Append entry (scoped to project cwd) |
+| `journal-read` | Read by timestamp id |
+| `journal-search` | Search by text/tags |
+
+Prompt text for agents lives under `src/extensions/dotcode-memory/prompts/` (`memory-prompt.md`, `journal-prompt.md`).
+
+## Routing preset
+
+When the **Routing** primary-agent preset is active, `dynamic-appendix.ts` adds runtime guidance for registered `memory-*` / `journal-*` tools (boot read, `memory-search` vs guessing URIs).
+
+## Shared database
+
+dotcode-memory does not embed storage. It uses the dotcode CLI, which reads the same on-disk graph memory and journal stores as the dotcode application. Configure dotcode/data paths per dotcode’s own documentation so CLI and GUI stay aligned.
+
+## Phase 3 (not in this doc)
+
+Slash commands and `preloadBoot` are planned separately; Phase 2 covers tools, settings, routing hints, startup notify, and this document.
