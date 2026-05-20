@@ -23,12 +23,43 @@ Settings key (in project or user Pi settings, via `settingsManager.getProjectSet
 ```json
 {
   "dotcodeMemory": {
-    "enabled": true
+    "enabled": true,
+    "namespace": ""
   }
 }
 ```
 
-See `src/extensions/dotcode-memory/settings.ts` for `DOTCODE_MEMORY_SETTINGS_KEY`.
+| Field | Default | Description |
+|-------|---------|-------------|
+| `enabled` | `true` | Register memory/journal tools and append prompts |
+| `namespace` | `""` | Passed to dotcode as global `--namespace` (see below) |
+
+Only alphanumeric characters, `_`, and `-` are allowed in `namespace`; invalid values are treated as empty (shared default store).
+
+See `src/extensions/dotcode-memory/settings.ts` for `DOTCODE_MEMORY_SETTINGS_KEY` and `getDotcodeNamespace()`.
+
+### Namespace (multi-agent isolation)
+
+dotcode supports a global CLI flag `--namespace <id>` so separate agents or sessions can use isolated memory/journal views without changing on-disk layout manually.
+
+In dotpi, set per-project (or user) Pi settings:
+
+```json
+{
+  "dotcodeMemory": {
+    "enabled": true,
+    "namespace": "routing-agent"
+  }
+}
+```
+
+Every tool invocation runs the CLI as:
+
+`dotcode --json [--namespace <id>] memory …` / `journal …`
+
+The active namespace is stored for the session on `session_start` and refreshed on `before_agent_start`. Use `/memory-status` to see the resolved namespace and domain list for that scope.
+
+**Note:** Journal entries still include `--project` (cwd); namespace isolates dotcode’s logical store, not the project path.
 
 ## Initialization order
 
@@ -42,7 +73,7 @@ Memory tools must be registered before the Routing preset’s `before_agent_star
 
 ## Tools
 
-All tools invoke `dotcode --json …` (see `cli-runner.ts`).
+All tools invoke `dotcode --json [--namespace <id>] …` (see `cli-runner.ts`).
 
 ### Memory (`memory-*`)
 
@@ -84,6 +115,7 @@ Slash command registered by the extension (available even when memory tools are 
 Reports:
 
 - Whether dotcode-memory is enabled (`dotcodeMemory.enabled`, `DOTPI_DOTCODE_MEMORY`)
+- Resolved `dotcodeMemory.namespace` / dotcode `--namespace` (or default shared store)
 - Resolved `dotcode` binary path (`DOTCODE_CLI`, monorepo build, or `PATH`)
 - CLI health (same check as startup: local binary or successful `memory domains`)
 - Domain list from `dotcode memory domains` (count and per-domain node counts when present)
@@ -102,6 +134,6 @@ export const BLOCKED_TOOL_NAMES: readonly string[] = ["memory-delete"];
 
 Other permission-gate rules (e.g. blocked `read` paths under `/run/agenix/`) are unchanged.
 
-## Phase 4 (not in this doc)
+## Not covered here
 
-Namespace / `preloadBoot` work is planned separately.
+`preloadBoot`, tool-usage telemetry integration, and in-process Rust embedding remain out of scope for this extension.

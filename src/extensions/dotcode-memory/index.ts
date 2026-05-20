@@ -7,7 +7,12 @@ import { dotcodeInstallHint, isDotcodeBinaryAvailable } from "./cli-health.js";
 import { registerJournalTools } from "./journal-tools.js";
 import { buildMemoryStatusReport } from "./memory-status.js";
 import { registerMemoryTools } from "./memory-tools.js";
-import { isDisabledByEnv, isDotcodeMemoryEnabled } from "./settings.js";
+import {
+  getDotcodeNamespace,
+  isDisabledByEnv,
+  isDotcodeMemoryEnabled,
+  setSessionDotcodeNamespace,
+} from "./settings.js";
 import { generateSystemPrompt } from "./system-prompt.js";
 
 const INSTALL_GUARD = Symbol.for("dotpi.dotcode-memory.installed");
@@ -41,6 +46,7 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
     description:
       "Show dotcode-memory enablement, CLI health, resolved binary, and domain list.",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
+      setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
       const report = await buildMemoryStatusReport(ctx);
       if (ctx.hasUI) {
         ctx.ui.notify(report, "info");
@@ -52,12 +58,14 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event, ctx) => {
     if (!isDotcodeMemoryEnabled(ctx)) return;
+    setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
     ensureToolsRegistered(pi, ctx);
     await maybeNotifyMissingCli(ctx);
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
     if (!isDotcodeMemoryEnabled(ctx)) return;
+    setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
     if (!toolsRegistered) {
       ensureToolsRegistered(pi, ctx);
     }

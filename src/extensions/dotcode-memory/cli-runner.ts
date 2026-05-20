@@ -6,8 +6,28 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import {
+  getSessionDotcodeNamespace,
+  sanitizeDotcodeNamespace,
+} from "./settings.js";
 
 const execFile = promisify(execFileCb);
+
+export type RunDotcodeOptions = {
+  namespace?: string;
+};
+
+/** argv after binary: global flags, then subcommand args. */
+export function buildDotcodeArgv(
+  args: string[],
+  options?: RunDotcodeOptions,
+): string[] {
+  const ns =
+    options?.namespace !== undefined
+      ? sanitizeDotcodeNamespace(options.namespace)
+      : getSessionDotcodeNamespace();
+  return ["--json", ...(ns ? ["--namespace", ns] : []), ...args];
+}
 
 let cachedBinaryPath: string | undefined;
 
@@ -57,10 +77,13 @@ function findBinary(): string {
   return cachedBinaryPath;
 }
 
-export async function runDotcode(args: string[]): Promise<unknown> {
+export async function runDotcode(
+  args: string[],
+  options?: RunDotcodeOptions,
+): Promise<unknown> {
   const bin = findBinary();
   try {
-    const { stdout } = await execFile(bin, ["--json", ...args], {
+    const { stdout } = await execFile(bin, buildDotcodeArgv(args, options), {
       maxBuffer: 10 * 1024 * 1024,
     });
     return JSON.parse(stdout);

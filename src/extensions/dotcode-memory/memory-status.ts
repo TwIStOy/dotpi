@@ -5,6 +5,7 @@ import {
 } from "./cli-health.js";
 import { getDotcodeBinaryPath, runDotcode } from "./cli-runner.js";
 import {
+  getDotcodeNamespace,
   isDisabledByEnv,
   isDotcodeMemoryEnabled,
 } from "./settings.js";
@@ -78,6 +79,13 @@ export async function buildMemoryStatusReport(
 
   const lines: string[] = ["dotcode-memory: enabled"];
 
+  const namespace = getDotcodeNamespace(ctx);
+  lines.push(
+    namespace
+      ? `Namespace: ${namespace} (dotcode --namespace)`
+      : "Namespace: (default — shared store)",
+  );
+
   const bin = getDotcodeBinaryPath();
   const resolved =
     bin === "dotcode" ? "dotcode (PATH)" : `resolved: ${bin}`;
@@ -93,7 +101,9 @@ export async function buildMemoryStatusReport(
 
   if (available) {
     try {
-      const domains = await runDotcode(["memory", "domains"]);
+      const domains = await runDotcode(["memory", "domains"], {
+        namespace,
+      });
       lines.push(formatDomainsResult(domains));
     } catch (e) {
       lines.push(`Domains: ${String(e)}`);
