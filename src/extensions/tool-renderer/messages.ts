@@ -86,7 +86,9 @@ function appendUserMessageBreak(lines: string[]): string[] {
 }
 
 interface UserMessagePatchState {
-  activeCtx?: ExtensionContext;
+  /** Snapshot from session_start; never read ctx.hasUI / ctx.ui from a cached ExtensionContext in render (stale after reload / session replace). */
+  interactiveUI: boolean;
+  uiTheme?: unknown;
   originalRender: (width: number) => string[];
 }
 
@@ -104,6 +106,7 @@ export function installUserMessageRenderer(
     | undefined;
   if (!state) {
     state = {
+      interactiveUI: false,
       originalRender: prototype.render as (width: number) => string[],
     };
     prototype[USER_MESSAGE_PATCH_SYMBOL] = state;
@@ -112,8 +115,7 @@ export function installUserMessageRenderer(
       width: number,
     ): string[] {
       const box = this?.contentBox;
-      const ctx = state?.activeCtx;
-      if (box && ctx?.hasUI) {
+      if (box && state?.interactiveUI) {
         const compact = toolRendererSettings.compactUserMessages;
         const paddingY = compact ? 0 : 1;
         const boxState = compact
@@ -126,7 +128,7 @@ export function installUserMessageRenderer(
             box.setBgFn?.(undefined);
           } else {
             box.setBgFn?.((content: string) => {
-              const theme = state?.activeCtx?.ui?.theme;
+              const theme = state?.uiTheme as { bg?: (key: string, s: string) => string } | undefined;
               if (!theme?.bg) return content;
               try {
                 return theme.bg("userMessageBg", content);
@@ -159,19 +161,20 @@ export function installUserMessageRenderer(
   }
 
   pi.on("session_start", (_event: any, ctx: ExtensionContext) => {
-    state!.activeCtx = ctx;
+    state!.interactiveUI = ctx.hasUI;
+    state!.uiTheme = ctx.hasUI ? ctx.ui.theme : undefined;
   });
   pi.on("session_shutdown", () => {
     if (prototype[USER_MESSAGE_PATCH_SYMBOL] === state) {
       prototype.render = state!.originalRender as unknown;
       delete prototype[USER_MESSAGE_PATCH_SYMBOL];
     }
-    state!.activeCtx = undefined;
+    state!.interactiveUI = false;
+    state!.uiTheme = undefined;
   });
 }
 
 interface AssistantMessagePatchState {
-  activeCtx?: ExtensionContext;
   originalRender: (width: number) => string[];
   originalUpdateContent: (message: any) => void;
 }
@@ -233,21 +236,17 @@ export function installAssistantMessageRenderer(
     };
   }
 
-  pi.on("session_start", (_event: any, ctx: ExtensionContext) => {
-    state!.activeCtx = ctx;
-  });
   pi.on("session_shutdown", () => {
     if (prototype[ASSISTANT_MESSAGE_PATCH_SYMBOL] === state) {
       prototype.render = state!.originalRender as unknown;
       prototype.updateContent = state!.originalUpdateContent as unknown;
       delete prototype[ASSISTANT_MESSAGE_PATCH_SYMBOL];
     }
-    state!.activeCtx = undefined;
   });
 }
 
 interface CompactionSummaryPatchState {
-  activeCtx?: ExtensionContext;
+  uiTheme?: unknown;
   originalUpdateDisplay: () => void;
 }
 
@@ -271,13 +270,12 @@ export function installCompactionSummaryRenderer(
     prototype.updateDisplay = function compactCompactionSummaryDisplay(
       this: any,
     ): void {
-      const ctx = state?.activeCtx;
       if (!toolRendererSettings.compactCompactionMessages) {
         state!.originalUpdateDisplay.call(this);
         return;
       }
 
-      const theme = ctx?.ui?.theme ?? FALLBACK_THEME;
+      const theme = (state?.uiTheme as any) ?? FALLBACK_THEME;
       const message = this?.message ?? {};
       const tokensBefore = Number.isFinite(Number(message.tokensBefore))
         ? Number(message.tokensBefore)
@@ -323,19 +321,19 @@ export function installCompactionSummaryRenderer(
   }
 
   pi.on("session_start", (_event: any, ctx: ExtensionContext) => {
-    state!.activeCtx = ctx;
+    state!.uiTheme = ctx.hasUI ? ctx.ui.theme : undefined;
   });
   pi.on("session_shutdown", () => {
     if (prototype[COMPACTION_SUMMARY_RENDERER_PATCH_SYMBOL] === state) {
       prototype.updateDisplay = state!.originalUpdateDisplay as unknown;
       delete prototype[COMPACTION_SUMMARY_RENDERER_PATCH_SYMBOL];
     }
-    state!.activeCtx = undefined;
+    state!.uiTheme = undefined;
   });
 }
 
 interface SkillInvocationPatchState {
-  activeCtx?: ExtensionContext;
+  uiTheme?: unknown;
   originalUpdateDisplay: () => void;
 }
 
@@ -396,13 +394,12 @@ export function installSkillInvocationRenderer(
     prototype.updateDisplay = function compactSkillInvocationDisplay(
       this: any,
     ): void {
-      const ctx = state?.activeCtx;
       if (!toolRendererSettings.compactSkillMessages) {
         state!.originalUpdateDisplay.call(this);
         return;
       }
 
-      const th = ctx?.ui?.theme ?? FALLBACK_THEME;
+      const th = (state?.uiTheme as any) ?? FALLBACK_THEME;
       const skillBlock = this?.skillBlock ?? {};
       const name =
         typeof skillBlock.name === "string" && skillBlock.name.trim()
@@ -448,19 +445,19 @@ export function installSkillInvocationRenderer(
   }
 
   pi.on("session_start", (_event: any, ctx: ExtensionContext) => {
-    state!.activeCtx = ctx;
+    state!.uiTheme = ctx.hasUI ? ctx.ui.theme : undefined;
   });
   pi.on("session_shutdown", () => {
     if (prototype[SKILL_INVOCATION_RENDERER_PATCH_SYMBOL] === state) {
       prototype.updateDisplay = state!.originalUpdateDisplay as unknown;
       delete prototype[SKILL_INVOCATION_RENDERER_PATCH_SYMBOL];
     }
-    state!.activeCtx = undefined;
+    state!.uiTheme = undefined;
   });
 }
 
 interface MarkdownCodeBlockPatchState {
-  activeCtx?: ExtensionContext;
+  uiTheme?: unknown;
   originalRenderToken: (
     token: any,
     width: number,
@@ -469,13 +466,13 @@ interface MarkdownCodeBlockPatchState {
   ) => string[];
 }
 
-function codeBlockBgParts(ctx?: ExtensionContext): {
+function codeBlockBgParts(uiTheme?: unknown): {
   open: string;
   close: string;
 } {
   const marker = "\uE000";
   try {
-    const theme = ctx?.hasUI ? ctx.ui.theme : undefined;
+    const theme = uiTheme as { bg?: (key: string, s: string) => string } | undefined;
     if (theme?.bg)
       return ansiPartsFromStyled(theme.bg("customMessageBg", marker));
   } catch {
@@ -484,8 +481,8 @@ function codeBlockBgParts(ctx?: ExtensionContext): {
   return { open: "\x1b[48;5;236m", close: "\x1b[49m" };
 }
 
-function applyCodeBlockBg(line: string, ctx?: ExtensionContext): string {
-  const { open, close } = codeBlockBgParts(ctx);
+function applyCodeBlockBg(line: string, uiTheme?: unknown): string {
+  const { open, close } = codeBlockBgParts(uiTheme);
   if (!open) return line;
   const reapplied = line.replace(
     /\x1b\[(?:0|49)m/g,
@@ -502,7 +499,7 @@ function renderStyledCodeBlock(
   token: any,
   width: number,
   markdownTheme: any,
-  ctx?: ExtensionContext,
+  uiTheme?: unknown,
 ): string[] {
   const contentWidth = stableRenderWidth(width);
   const rawLang = typeof token?.lang === "string" ? token.lang.trim() : "";
@@ -544,7 +541,7 @@ function renderStyledCodeBlock(
   const bodyWidth = Math.max(1, panelWidth - stripWidth);
   const codeWidth = Math.max(1, bodyWidth - 2);
   const lines: string[] = [];
-  const blankBody = applyCodeBlockBg(" ".repeat(bodyWidth), ctx);
+  const blankBody = applyCodeBlockBg(" ".repeat(bodyWidth), uiTheme);
   lines.push(`${blockIndent}${strip}${blankBody}`);
   for (const highlightedLine of highlightedLines) {
     const wrapped = wrapTextWithAnsi(highlightedLine, codeWidth);
@@ -552,7 +549,7 @@ function renderStyledCodeBlock(
     for (const segment of segments) {
       const paddedCode = padAnsiLine(segment, codeWidth);
       lines.push(
-        `${blockIndent}${strip}${applyCodeBlockBg(` ${paddedCode} `, ctx)}`,
+        `${blockIndent}${strip}${applyCodeBlockBg(` ${paddedCode} `, uiTheme)}`,
       );
     }
   }
@@ -587,7 +584,7 @@ export function installMarkdownCodeBlockRenderer(pi: ExtensionAPI): void {
           token,
           width,
           this?.theme,
-          state?.activeCtx,
+          state?.uiTheme,
         );
         if (nextTokenType && nextTokenType !== "space")
           return [...codeLines, ""];
@@ -604,13 +601,13 @@ export function installMarkdownCodeBlockRenderer(pi: ExtensionAPI): void {
   }
 
   pi.on("session_start", (_event: any, ctx: ExtensionContext) => {
-    state!.activeCtx = ctx;
+    state!.uiTheme = ctx.hasUI ? ctx.ui.theme : undefined;
   });
   pi.on("session_shutdown", () => {
     if (prototype[MARKDOWN_CODE_BLOCK_PATCH_SYMBOL] === state) {
       prototype.renderToken = state!.originalRenderToken as unknown;
       delete prototype[MARKDOWN_CODE_BLOCK_PATCH_SYMBOL];
     }
-    state!.activeCtx = undefined;
+    state!.uiTheme = undefined;
   });
 }

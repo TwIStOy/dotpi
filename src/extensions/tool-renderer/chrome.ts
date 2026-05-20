@@ -1,7 +1,6 @@
 import {
   ToolExecutionComponent,
   type ExtensionAPI,
-  type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Loader } from "@earendil-works/pi-tui";
 
@@ -220,7 +219,7 @@ function prepareToolChromeTheme(theme: any): void {
   captureDiffBackgroundTheme(theme);
 }
 
-let activeToolChromeCtx: ExtensionContext | undefined;
+let activeToolChromeTheme: unknown;
 
 function mutedHorizontalRule(theme: any, width: number): string {
   return subtleRule(theme, "─".repeat(stableRenderWidth(width)));
@@ -274,7 +273,7 @@ export function installToolChromePatch(): void {
     const activeTheme =
       this?.[TOOL_CHROME_THEME_SYMBOL] ??
       this?.ui?.theme ??
-      (activeToolChromeCtx?.hasUI ? activeToolChromeCtx.ui.theme : undefined);
+      (activeToolChromeTheme as { fg?: (t: string, s: string) => string } | undefined);
     const rule = mutedHorizontalRule(activeTheme, width);
     return shouldOmitBottomToolChromeRule(core)
       ? [rule, ...core]
@@ -285,15 +284,15 @@ export function installToolChromePatch(): void {
 
 export function registerToolChromeEvents(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
-    activeToolChromeCtx = ctx;
+    activeToolChromeTheme = ctx.hasUI ? ctx.ui.theme : undefined;
     if (ctx.hasUI) prepareToolChromeTheme(ctx.ui.theme);
   });
   pi.on("turn_start", (_event, ctx) => {
-    activeToolChromeCtx = ctx;
+    activeToolChromeTheme = ctx.hasUI ? ctx.ui.theme : undefined;
     if (ctx.hasUI) prepareToolChromeTheme(ctx.ui.theme);
   });
   pi.on("session_shutdown", () => {
-    activeToolChromeCtx = undefined;
+    activeToolChromeTheme = undefined;
   });
 }
 
