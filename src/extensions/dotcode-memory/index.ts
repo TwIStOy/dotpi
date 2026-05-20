@@ -4,6 +4,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { dotcodeInstallHint, isDotcodeBinaryAvailable } from "./cli-health.js";
+import { buildReorganizeMemoryPrompt } from "./commands/reorganize-memory-template.js";
 import { buildSelfImprovePrompt } from "./commands/self-improve-template.js";
 import { registerJournalTools } from "./journal-tools.js";
 import { buildMemoryStatusReport } from "./memory-status.js";
@@ -80,6 +81,35 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
 
       setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
       pi.sendUserMessage(buildSelfImprovePrompt(args));
+    },
+  });
+
+  pi.registerCommand("reorganize-memory", {
+    description:
+      "Audit the full memory tree — fix domain placement, parent relationships, groupings, priorities, and triggers",
+    handler: async (args: string, ctx: ExtensionCommandContext) => {
+      if (!ctx.isIdle()) {
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            "Agent is busy. Wait for the current turn to finish, then run /reorganize-memory again.",
+            "warning",
+          );
+        }
+        return;
+      }
+
+      if (!isDotcodeMemoryEnabled(ctx)) {
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            "dotcode-memory tools are disabled. Enable memory tools before reorganizing the graph.",
+            "warning",
+          );
+        }
+        return;
+      }
+
+      setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+      pi.sendUserMessage(buildReorganizeMemoryPrompt(args));
     },
   });
 

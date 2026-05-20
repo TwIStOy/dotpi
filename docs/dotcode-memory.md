@@ -146,6 +146,30 @@ Slash command that injects a structured reflection prompt as a **user message** 
 
 Template source: `src/extensions/dotcode-memory/commands/self-improve-template.ts` (`SELF_IMPROVE_TEMPLATE`, `buildSelfImprovePrompt`).
 
+## `/reorganize-memory`
+
+Injects a full memory-tree audit prompt as a **user message** (same mechanism as `/self-improve`).
+
+| Usage | Behavior |
+|-------|----------|
+| `/reorganize-memory` | Audit and reorganize the entire tree |
+| `/reorganize-memory <uri-prefix>` | Limit scope (e.g. `tesla://`) |
+
+**Handler rules**
+
+- Agent must be **idle**; otherwise a warning is shown.
+- **Requires** dotcode-memory enabled (unlike `/self-improve`, this command does not run when tools are disabled).
+- Sets session namespace before sending the prompt.
+
+**Workflow (prompt content)**
+
+1. Inventory via `system://index`, per-node `memory-read`, `system://glossary`.
+2. Structural analysis table (domain, parent, grouping, priority, disclosure, triggers).
+3. Execute moves with create-then-delete protocol; update triggers and metadata.
+4. Verify with `system://index` and report before/after.
+
+Template source: `src/extensions/dotcode-memory/commands/reorganize-memory-template.ts`.
+
 ## Permission gate and `memory-delete`
 
 By default, **`memory-delete` is not blocked** — the agent can delete memory nodes when the extension and CLI are enabled.
