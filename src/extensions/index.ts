@@ -4,12 +4,14 @@ import initCompactStatusline from "./compact-statusline/index.js";
 import initContextUsage from "./context-usage/index.js";
 import initDebugLlmDump from "./debug-llm-dump/index.js";
 import initPermissionGate from "./permission-gate/index.js";
+import initToolCallCasing from "./tool-call-casing/index.js";
 import initPrimaryAgent from "./primary-agent/index.js";
 import initQuestions from "./questions/index.js";
 import initSubagents from "./subagents/index.js";
 import initToolRenderer from "./tool-renderer/index.js";
 
 export function initExtensions(pi: ExtensionAPI) {
+  initToolCallCasing(pi);
   initDebugLlmDump(pi);
   initPermissionGate(pi);
   initCompaction(pi);
