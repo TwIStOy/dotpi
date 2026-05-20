@@ -12,14 +12,23 @@ import {
   loadPrimaryAgentPreset,
   type LoadedPrimaryAgentPreset,
 } from "./prompt-loader.js";
-import { PRIMARY_AGENT_PRESET_SLUGS } from "./prompt-manifest.js";
+import {
+  PRIMARY_AGENT_PRESET_SLUGS,
+  type PrimaryAgentPresetSlug,
+} from "./prompt-manifest.js";
 import { buildRoutingDynamicAppendix } from "./routing/dynamic-appendix.js";
 import { applyPrimaryAgentToolPolicy } from "./tool-policy.js";
 
 const INSTALL_GUARD = Symbol.for("dotpi.primary-agent.installed");
 
+/** Preset applied when a main session starts and the user has not opted into built-in default. */
+const DEFAULT_PRIMARY_AGENT_SLUG: PrimaryAgentPresetSlug = "routing";
+
 /** Session id → selected preset id, or unset / cleared for built-in default */
 const selectionBySession = new Map<string, string>();
+
+/** User asked for Pi built-in prompt/tools (`/primary-agent default`) — skip auto Routing for this session. */
+const sessionsPreferBuiltinDefault = new Set<string>();
 
 /** Snapshot of `pi.getActiveTools()` before the first tool-policy preset in this session */
 const originalToolsBySession = new Map<string, string[]>();
@@ -57,6 +66,33 @@ function setSelectedId(ctx: ExtensionCommandContext, id: string | undefined) {
   }
 }
 
+function applyPresetSelectionAndTools(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  preset: LoadedPrimaryAgentPreset,
+): void {
+  const sessionId = ctx.sessionManager.getSessionId();
+  sessionsPreferBuiltinDefault.delete(sessionId);
+  selectionBySession.set(sessionId, preset.id);
+  if (preset.toolPolicy) {
+    maybeSnapshotToolsForSession(pi, sessionId);
+    applyPrimaryAgentToolPolicy(pi, ctx, preset.toolPolicy);
+  }
+  emitPrimaryAgentSelectionChanged(pi);
+}
+
+function ensureDefaultPrimaryAgentOnSessionStart(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+): void {
+  const sessionId = ctx.sessionManager.getSessionId();
+  if (sessionsPreferBuiltinDefault.has(sessionId)) return;
+  if (selectionBySession.has(sessionId)) return;
+  const preset = getPreset(DEFAULT_PRIMARY_AGENT_SLUG);
+  if (!preset) return;
+  applyPresetSelectionAndTools(pi, ctx, preset);
+}
+
 function maybeSnapshotToolsForSession(
   pi: ExtensionAPI,
   sessionId: string,
@@ -71,6 +107,7 @@ function clearPrimaryAgentSelection(
   ctx: ExtensionCommandContext,
 ): void {
   const sessionId = ctx.sessionManager.getSessionId();
+  sessionsPreferBuiltinDefault.add(sessionId);
   setSelectedId(ctx, undefined);
   const snap = originalToolsBySession.get(sessionId);
   if (snap) {
@@ -85,13 +122,7 @@ function activatePrimaryAgentPreset(
   ctx: ExtensionCommandContext,
   preset: LoadedPrimaryAgentPreset,
 ): void {
-  const sessionId = ctx.sessionManager.getSessionId();
-  setSelectedId(ctx, preset.id);
-  if (preset.toolPolicy) {
-    maybeSnapshotToolsForSession(pi, sessionId);
-    applyPrimaryAgentToolPolicy(pi, ctx, preset.toolPolicy);
-  }
-  emitPrimaryAgentSelectionChanged(pi);
+  applyPresetSelectionAndTools(pi, ctx, preset);
 }
 
 /**
@@ -111,6 +142,10 @@ export default function initPrimaryAgent(pi: ExtensionAPI): void {
       return preset?.label ?? id;
     },
   };
+
+  pi.on("session_start", async (_event, ctx) => {
+    ensureDefaultPrimaryAgentOnSessionStart(pi, ctx);
+  });
 
   pi.on("before_agent_start", async (event, ctx) => {
     const sessionId = ctx.sessionManager.getSessionId();

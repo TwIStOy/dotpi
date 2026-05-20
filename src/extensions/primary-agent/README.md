@@ -2,6 +2,8 @@
 
 Each preset is one markdown file. Slugs are listed in `prompt-manifest.ts` as `PRIMARY_AGENT_PRESET_SLUGS`. Most presets live under `prompts/<slug>.md`; the **Routing** preset lives under `routing/prompts/routing.md` (see `routing/README.md`).
 
+**Default for the main session:** On each `session_start`, **Routing** is applied automatically unless the user has run `/primary-agent default` (or `reset` / `clear`) for that session to stay on Pi’s built-in prompt and tools.
+
 Optional YAML frontmatter:
 
 - `label` or `title` — shown in `/primary-agent` menu (defaults to the slug).
