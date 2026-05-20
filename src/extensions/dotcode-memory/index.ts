@@ -4,6 +4,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { dotcodeInstallHint, isDotcodeBinaryAvailable } from "./cli-health.js";
+import { buildSelfImprovePrompt } from "./commands/self-improve-template.js";
 import { registerJournalTools } from "./journal-tools.js";
 import { buildMemoryStatusReport } from "./memory-status.js";
 import { registerMemoryTools } from "./memory-tools.js";
@@ -51,6 +52,34 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
       if (ctx.hasUI) {
         ctx.ui.notify(report, "info");
       }
+    },
+  });
+
+  pi.registerCommand("self-improve", {
+    description:
+      "Reflect on the current session, identify learnings, persist to memory/journal, and improve skills",
+    handler: async (args: string, ctx: ExtensionCommandContext) => {
+      if (!ctx.isIdle()) {
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            "Agent is busy. Wait for the current turn to finish, then run /self-improve again.",
+            "warning",
+          );
+        }
+        return;
+      }
+
+      if (!isDotcodeMemoryEnabled(ctx)) {
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            "dotcode-memory tools are disabled (settings or DOTPI_DOTCODE_MEMORY). Reflection can continue, but memory-* and journal-* writes may fail until enabled.",
+            "warning",
+          );
+        }
+      }
+
+      setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+      pi.sendUserMessage(buildSelfImprovePrompt(args));
     },
   });
 

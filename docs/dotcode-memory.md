@@ -122,6 +122,30 @@ Reports:
 
 In the UI, output is shown as an **info** notification (see `primary-agent` / `dotpi-debug-dump` for the same pattern).
 
+## `/self-improve`
+
+Slash command that injects a structured reflection prompt as a **user message** (`pi.sendUserMessage`), so the agent runs the full self-improve workflow in a new turn.
+
+| Usage | Behavior |
+|-------|----------|
+| `/self-improve` | Reflect on the entire visible session |
+| `/self-improve <topic>` | Focus reflection on that area (e.g. `garage-api`) |
+
+**Handler rules**
+
+- If the agent is **not idle** (streaming / busy), shows a warning and does not send the message — finish the current turn first.
+- If **dotcode-memory is disabled** (`dotcodeMemory.enabled: false` or `DOTPI_DOTCODE_MEMORY=0`), shows a warning that `memory-*` / `journal-*` tools may be unavailable; reflection and skill steps can still run.
+- Registered **before** the env disable early-return (like `/memory-status`), so the command exists even when `DOTPI_DOTCODE_MEMORY` disables tools.
+
+**Workflow (prompt content)**
+
+1. **Reflect** — table of findings (memory, journal, skills); early exit if nothing substantial.
+2. **Persist** — apply `memory-*` and `journal-*` changes without approval (when tools are enabled).
+3. **Skills** — propose `SKILL.md` edits; require approval via the **`question`** tool before writing files. Skill paths follow Pi/dotpi layout (`skills/`, `~/.pi/agent/skills`, project `.pi/skills` / `.agents/skills`). If **plan** mode is on, exit plan or ensure write tools before editing skills.
+4. **Summary** — report what was changed or skipped.
+
+Template source: `src/extensions/dotcode-memory/commands/self-improve-template.ts` (`SELF_IMPROVE_TEMPLATE`, `buildSelfImprovePrompt`).
+
 ## Permission gate and `memory-delete`
 
 By default, **`memory-delete` is not blocked** — the agent can delete memory nodes when the extension and CLI are enabled.
