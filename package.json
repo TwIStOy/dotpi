@@ -12,7 +12,7 @@
     "validate:subagent-prompts": "node scripts/check-subagent-prompts.mjs",
     "validate:primary-agent-prompts": "node scripts/check-primary-agent-prompts.mjs",
     "build:tsc": "tsc",
-    "build:copy-prompts": "sh -c 'mkdir -p dist/extensions/subagents/prompts dist/extensions/primary-agent/prompts dist/extensions/primary-agent/routing/prompts && cp src/extensions/subagents/prompts/*.md dist/extensions/subagents/prompts/ && find src/extensions/primary-agent/prompts -maxdepth 1 -name \"*.md\" -exec cp {} dist/extensions/primary-agent/prompts/ \\; && find src/extensions/primary-agent/routing/prompts -maxdepth 1 -name \"*.md\" -exec cp {} dist/extensions/primary-agent/routing/prompts/ \\;'",
+    "build:copy-prompts": "sh -c 'mkdir -p dist/extensions/subagents/prompts dist/extensions/primary-agent/prompts dist/extensions/primary-agent/routing/prompts dist/extensions/dotcode-memory/prompts && cp src/extensions/subagents/prompts/*.md dist/extensions/subagents/prompts/ && find src/extensions/primary-agent/prompts -maxdepth 1 -name \"*.md\" -exec cp {} dist/extensions/primary-agent/prompts/ \\; && find src/extensions/primary-agent/routing/prompts -maxdepth 1 -name \"*.md\" -exec cp {} dist/extensions/primary-agent/routing/prompts/ \\; && cp src/extensions/dotcode-memory/prompts/*.md dist/extensions/dotcode-memory/prompts/'",
     "build": "npm run validate:subagent-prompts && npm run validate:primary-agent-prompts && npm run build:tsc && npm run build:copy-prompts",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
