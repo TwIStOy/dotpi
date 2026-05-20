@@ -16,3 +16,10 @@ export const PERMISSION_GATE_ENABLED = true;
  * gates need path denylists.
  */
 export const READ_BLOCKED_PATH_PREFIXES: readonly string[] = [AGENIX_RUN_PREFIX];
+
+/**
+ * Tool names denied before execution (first matching gate wins).
+ * Empty by default. To block graph memory deletes from the agent, add
+ * `"memory-delete"` here (see docs/dotcode-memory.md).
+ */
+export const BLOCKED_TOOL_NAMES: readonly string[] = [];

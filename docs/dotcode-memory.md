@@ -77,6 +77,31 @@ When the **Routing** primary-agent preset is active, `dynamic-appendix.ts` adds 
 
 dotcode-memory does not embed storage. It uses the dotcode CLI, which reads the same on-disk graph memory and journal stores as the dotcode application. Configure dotcode/data paths per dotcode’s own documentation so CLI and GUI stay aligned.
 
-## Phase 3 (not in this doc)
+## `/memory-status`
 
-Slash commands and `preloadBoot` are planned separately; Phase 2 covers tools, settings, routing hints, startup notify, and this document.
+Slash command registered by the extension (available even when memory tools are disabled via env).
+
+Reports:
+
+- Whether dotcode-memory is enabled (`dotcodeMemory.enabled`, `DOTPI_DOTCODE_MEMORY`)
+- Resolved `dotcode` binary path (`DOTCODE_CLI`, monorepo build, or `PATH`)
+- CLI health (same check as startup: local binary or successful `memory domains`)
+- Domain list from `dotcode memory domains` (count and per-domain node counts when present)
+
+In the UI, output is shown as an **info** notification (see `primary-agent` / `dotpi-debug-dump` for the same pattern).
+
+## Permission gate and `memory-delete`
+
+By default, **`memory-delete` is not blocked** — the agent can delete memory nodes when the extension and CLI are enabled.
+
+To deny deletes (or any other tool name), add entries to `BLOCKED_TOOL_NAMES` in `src/extensions/permission-gate/settings.ts` (handled by `blocked-tool-names` gate). Example:
+
+```ts
+export const BLOCKED_TOOL_NAMES: readonly string[] = ["memory-delete"];
+```
+
+Other permission-gate rules (e.g. blocked `read` paths under `/run/agenix/`) are unchanged.
+
+## Phase 4 (not in this doc)
+
+Namespace / `preloadBoot` work is planned separately.
