@@ -9,7 +9,10 @@
     "skills": ["./skills"]
   },
   "scripts": {
-    "build": "tsc",
+    "validate:subagent-prompts": "node scripts/check-subagent-prompts.mjs",
+    "build:tsc": "tsc",
+    "build:copy-prompts": "sh -c 'mkdir -p dist/extensions/subagents/prompts && cp src/extensions/subagents/prompts/*.md dist/extensions/subagents/prompts/'",
+    "build": "npm run validate:subagent-prompts && npm run build:tsc && npm run build:copy-prompts",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "lint": "eslint src",

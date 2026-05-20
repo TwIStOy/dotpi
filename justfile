@@ -1,3 +1,6 @@
+validate-subagent-prompts:
+  npm run validate:subagent-prompts
+
 build:
   npm run build
 

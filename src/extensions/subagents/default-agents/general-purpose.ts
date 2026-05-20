@@ -1,4 +1,5 @@
 import type { AgentConfig } from "../types.js";
+import { loadSubagentPrompt } from "../prompt-loader.js";
 
 const generalPurpose: AgentConfig = {
   name: "general-purpose",
@@ -8,7 +9,7 @@ const generalPurpose: AgentConfig = {
   trigger: "Complex multi-step tasks that need file editing or code generation",
   extensions: true,
   skills: true,
-  systemPrompt: "",
+  systemPrompt: loadSubagentPrompt("general-purpose"),
   promptMode: "append",
   isDefault: true,
 };
