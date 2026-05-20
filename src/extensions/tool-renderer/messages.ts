@@ -11,10 +11,12 @@ import {
   ansiPartsFromStyled,
   ansiRed,
   isThinkingOnlyAssistantMessage,
+  padVisible,
   stableRenderWidth,
+  stripAnsi,
+  truncateAnsi,
   trimOuterBlankLinesAroundRules,
   trimThinkingOnlyAssistantLines,
-  stripAnsi,
   trimTrailingBlankLines,
   visibleWidth,
   wrapTextWithAnsi,
@@ -63,9 +65,7 @@ function renderUserMessageBorder(lines: string[], width: number): string[] {
   };
   const fitLine = (line: string) => {
     const clean = stripAnsi(line);
-    const visible =
-      clean.length > innerWidth ? clean.slice(0, innerWidth) : clean;
-    return visible + " ".repeat(Math.max(0, innerWidth - visible.length));
+    return padVisible(truncateAnsi(clean, innerWidth), innerWidth);
   };
 
   return [
