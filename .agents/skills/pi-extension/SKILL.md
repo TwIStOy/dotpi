@@ -1,11 +1,87 @@
 ---
 name: pi-extension
-description: Create, edit, and debug Pi Coding Agent extensions (TypeScript modules that extend Pi's behavior with custom tools, event handlers, commands, providers, and UI components). Use when the user asks to build a Pi extension, write an extension for Pi agent, register custom tools or commands for Pi, intercept Pi tool calls, or mentions Pi extensions, pi.registerTool, pi.registerCommand, pi.on, ExtensionAPI.
+description: Guide for changing or extending Pi behaviour and building Pi Coding Agent extensions. Use when modifying how Pi behaves, choosing among Agent Skills vs extensions vs prompts/themes/packages, scaffolding or packaging an extension, creating custom tools/commands/hooks/providers/UI, intercepting tool calls, debugging extensions, or deciding whether a core Pi patch is needed. Also use for TypeScript extension work (ExtensionAPI, pi.registerTool, pi.on).
+---
+
+# Pi extension & behaviour changes
+
+Help choose the right artifact, then implement. This skill is **not** a full API reference — Pi docs, `examples/extensions/`, and installed types under `@earendil-works/pi-coding-agent` (or `@mariozechner/pi-coding-agent`) are authoritative for signatures and current behaviour.
+
+**In this repo:** the shipped extension entry is `package.json` → `pi.extensions` → `./src/index.ts`; skills live under `./skills` via `pi.skills`.
+
+## Core principle: public extension points first, patch last
+
+Prefer Agent Skills, context files, prompt templates, themes, `models.json`, provider extensions, settings, and TypeScript extensions before changing Pi internals. A core patch is rare and needs evidence that no public surface can express the behaviour.
+
+## Choosing what to build
+
+| Goal | Build a… | Typical locations | Source of truth |
+|------|----------|-------------------|-----------------|
+| Teach workflow, domain, or how to use a tool/API/CLI | **Agent Skill** | `SKILL.md` + optional `scripts/`, `references/`, `assets/` in `.agents/skills/`, `.pi/skills/`, or package `pi.skills` | Agent Skills standard; Pi `docs/skills.md`; upstream `skill-creator` skill when authoring |
+| Change runtime: typed tool, command, hook, UI, safety gate, session/compaction, resource loader | **Extension** (this skill, below) | `.pi/extensions/`, `~/.pi/agent/extensions/`, or package `pi.extensions` | Read **`docs/extensions.md` end-to-end** + matching `examples/extensions/` |
+| Reusable prompt with variables | **Prompt template** | `.pi/prompts/`, `~/.pi/agent/prompts/`, package | `docs/prompt-templates.md` |
+| Project/user instructions | **Context file** | `AGENTS.md`, `CLAUDE.md`, `SYSTEM.md`, `APPEND_SYSTEM.md` | Pi README context / system prompt sections |
+| Appearance | **Theme** | `.pi/themes/`, package | `docs/themes.md` |
+| Models/providers | **models.json** or **provider extension** | `~/.pi/agent/models.json` vs extension for OAuth/discovery/custom streaming | `docs/models.md`, `docs/custom-provider.md` |
+| Share any of the above | **Pi package** | `package.json` `"pi": { extensions, skills, … }` or conventional dirs | `docs/packages.md` |
+
+Use **Agent Skill** / **Agent Skills** for the instruction artifact (not client-specific names like “Pi skill file” unless discussing discovery paths).
+
+## Agent Skill vs extension
+
+| Need | Prefer |
+|------|--------|
+| “Know our deploy process” / conventions / how to run a CLI | **Agent Skill** |
+| Confirm before `rm -rf`, change footer, plan mode, subagents, compaction | **Extension** |
+| Brave Search via script + instructions | **Skill** if enough; **Extension** if typed tool, custom UI, or tight runtime integration |
+| Structured `db_query` tool the model must call | **Extension** |
+
+**This document’s deep sections apply when the answer is Extension (or you are working in this repo’s `src/` extension code).**
+
+## Behavior-change triage
+
+1. State the desired **user-visible** behaviour in one sentence.
+2. Pick the **lightest** row from the table above.
+3. Read the **current** doc for that surface (do not guess APIs from memory).
+4. **Copy a working example** from `node_modules/@earendil-works/pi-coding-agent/examples/extensions/` (or upstream equivalent) when one exists.
+5. Only then implement; if you believe a **core patch** is required, complete the patch policy below first.
+
+## Extension workflow (before writing code)
+
+Agents often miss hooks by skimming one section of `extensions.md`. Do the full audit:
+
+1. Read **`docs/extensions.md` fully** (hooks, tools, commands, keybindings, resource loaders, renderers, session/compaction, settings, linked docs).
+2. Follow linked docs for your surface: `docs/tui.md`, `docs/themes.md`, `docs/models.md`, `docs/custom-provider.md`, `docs/packages.md`, `docs/keybindings.md`, `docs/session-format.md`, `docs/compaction.md`, `docs/sdk.md` as needed.
+3. Read **`examples/extensions/README.md`** and at least one matching example; match current structure.
+4. Map the request to a capability: events, tools, commands, shortcuts, flags, UI, rendering, resources, providers, compaction/session hooks, packaging.
+5. If docs/examples are ambiguous, inspect **`dist/core/extensions/types.d.ts`** (or `src/` in the package) — do not invent signatures.
+6. Build as extension/package unless you have **concrete** proof no public point exists; then patch policy.
+
+## Patch policy
+
+Patches are for core bugs, missing primitives that cannot be user-extended, or behaviour with no public route. Before patching upstream Pi:
+
+1. Read `CONTRIBUTING.md` and `AGENTS.md` in **earendil-works/pi** (or the fork you target).
+2. Document desired behaviour, every public option considered, what you read, and why each failed.
+3. Prefer the smallest **public API addition** when the behaviour should stay user-extensible.
+4. Do not open a PR you cannot explain (code path, edge cases, tests).
+
+## Quick-start validation
+
+| Artifact | How to verify |
+|----------|----------------|
+| Agent Skill | `pi --no-skills --skill /path/to/skill` or `/skill:name`; fix `name` / `description` frontmatter if it does not trigger |
+| Extension | `pi -e ./path/to/extension.ts`; for iteration use `.pi/extensions/` or `~/.pi/agent/extensions/` and **`/reload`** |
+| This package | `pi install .` / link per `docs/packages.md`; run agent with extension enabled |
+| Themes / prompts / models | Per linked doc; `/reload` or restart when required |
+
+When sharing: `package.json` `pi` manifest (see **dotpi** `package.json`) and test install from path or git/npm.
+
 ---
 
 # Pi Extension Development
 
-Build extensions for the Pi Coding Agent — TypeScript modules loaded via jiti (no compilation needed).
+Build extensions for the Pi Coding Agent — TypeScript modules loaded via jiti (no compilation needed for ad-hoc extensions; this repo uses `tsc` for its own build).
 
 ## Extension Structure
 
@@ -82,7 +158,7 @@ export default async function (pi: ExtensionAPI) {
 ## Package Namespaces
 
 The canonical packages are `@mariozechner/pi-coding-agent`, `@mariozechner/pi-ai`, and `@mariozechner/pi-tui`.
-A compatible fork exists at `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, `@earendil-works/pi-tui` — same APIs, different namespace. Remap imports when porting extensions between them.
+A compatible fork exists at `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, `@earendil-works/pi-tui` — same APIs, different namespace. **This repo uses `@earendil-works/*`.** Remap imports when porting extensions between them.
 
 ## Key APIs
 
@@ -291,7 +367,7 @@ session.dispose();
 - **`PackageSource`**: Settings type for npm/git packages. `type PackageSource = string | { source, extensions?, skills?, prompts?, themes? }`. Access via `ctx.settingsManager.getPackages()`.
 - **`resources_discover` event**: Extensions can return `{ skillPaths, promptPaths, themePaths }` to advertise additional resource directories.
 - **Security**: Extensions run with full system permissions. Only install from trusted sources.
-- **TypeScript via jiti**: No compilation step needed.
+- **TypeScript via jiti**: No compilation step needed for loose extensions; **dotpi** still runs `npm run build` for CI.
 - **Output truncation**: Tools MUST truncate output. Use `truncateHead`/`truncateTail` from `@mariozechner/pi-coding-agent`. Default limits: 50KB, 2000 lines.
 - **String enums**: Use `StringEnum` from `@mariozechner/pi-ai`, NOT `Type.Union`/`Type.Literal` (incompatible with Google API). Note: `@earendil-works/pi-ai` does NOT export `StringEnum` — use `Type.Union`/`Type.Literal` there instead. Import `Type` from `"typebox"` (or `"@sinclair/typebox"` for upstream).
 - **ThinkingLevel**: Import from `@mariozechner/pi-agent-core` (or `@earendil-works/pi-agent-core`), NOT from pi-ai or pi-coding-agent. Type: `"off" | "minimal" | "low" | "medium" | "high" | "xhigh"`.
@@ -320,3 +396,5 @@ When building TUI widgets that display dynamic content (agent status, progress, 
 - [events.md](references/events.md) — Full event catalog and lifecycle flow
 - [tools.md](references/tools.md) — Tool definition, rendering, stateful patterns, truncation
 - [context.md](references/context.md) — Context properties, UI methods, providers
+- Installed package: `node_modules/@earendil-works/pi-coding-agent/docs/extensions.md` and `examples/extensions/`
+- Upstream routing skill (artifact choice): [tmustier/pi-extensions `extending-pi/SKILL.md`](https://github.com/tmustier/pi-extensions/blob/main/extending-pi/SKILL.md)
