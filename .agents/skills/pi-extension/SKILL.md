@@ -7,7 +7,7 @@ description: Guide for changing or extending Pi behaviour and building Pi Coding
 
 Help choose the right artifact, then implement. This skill is **not** a full API reference — Pi docs, `examples/extensions/`, and installed types under `@earendil-works/pi-coding-agent` (or `@mariozechner/pi-coding-agent`) are authoritative for signatures and current behaviour.
 
-**In this repo:** the shipped extension entry is `package.json` → `pi.extensions` → `./src/index.ts`; skills live under `./skills` via `pi.skills`.
+**In this repo:** the shipped extension entry is `package.json` → `pi.extensions` → `./src/index.ts`; bundled skills and themes under `./skills` and `./themes` (`pi.skills` / `pi.themes`, plus `resources_discover` in `src/index.ts` when only the extension file is configured).
 
 ## Core principle: public extension points first, patch last
 

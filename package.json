@@ -6,7 +6,8 @@
     "extensions": [
       "./src/index.ts"
     ],
-    "skills": ["./skills"]
+    "skills": ["./skills"],
+    "themes": ["./themes"]
   },
   "scripts": {
     "validate:subagent-prompts": "node scripts/check-subagent-prompts.mjs",
