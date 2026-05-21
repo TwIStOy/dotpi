@@ -1,5 +1,5 @@
 ---
-name: pi-extension
+name: extension-pi
 description: Guide for changing or extending Pi behaviour and building Pi Coding Agent extensions. Use when modifying how Pi behaves, choosing among Agent Skills vs extensions vs prompts/themes/packages, scaffolding or packaging an extension, creating custom tools/commands/hooks/providers/UI, intercepting tool calls, debugging extensions, or deciding whether a core Pi patch is needed. Also use for TypeScript extension work (ExtensionAPI, pi.registerTool, pi.on).
 ---
 
@@ -77,6 +77,10 @@ Patches are for core bugs, missing primitives that cannot be user-extended, or b
 
 When sharing: `package.json` `pi` manifest (see **dotpi** `package.json`) and test install from path or git/npm.
 
+=======
+name: extension-pi
+description: Create, edit, and debug Pi Coding Agent extensions (TypeScript modules that extend Pi's behavior with custom tools, event handlers, commands, providers, and UI components). Use when the user asks to build a Pi extension, write an extension for Pi agent, register custom tools or commands for Pi, intercept Pi tool calls, or mentions Pi extensions, pi.registerTool, pi.registerCommand, pi.on, ExtensionAPI.
+>>>>>>> f1f73a7 (refactor(skill): move extension-pi skill):skills/extension-pi/SKILL.md
 ---
 
 # Pi Extension Development
