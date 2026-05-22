@@ -11,11 +11,68 @@ import {
   resultRaw,
 } from "./render.js";
 
-function parseListResult(result: any): { total: number; lines: string[] } {
+interface ListNode {
+  uri: string;
+  domain: string;
+  path: string;
+  priority: number;
+  disclosure: string;
+  content_length: number;
+  children: ListNode[];
+}
+
+function parseListResult(result: any): ListNode[] {
   const raw = resultRaw(result);
-  if (!raw) return { total: 0, lines: [] };
-  const split = raw.split(/\r?\n/).filter((l) => l.trim() !== "");
-  return { total: split.length, lines: split };
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    const nodes = parsed?.nodes;
+    if (!Array.isArray(nodes)) return [];
+    return nodes as ListNode[];
+  } catch {
+    return [];
+  }
+}
+
+function formatNodeRow(node: ListNode, theme: any): string {
+  let line = `${theme.fg("accent", node.uri)}`;
+  const meta: string[] = [];
+  if (node.priority !== 5 && node.priority !== undefined)
+    meta.push(`p${node.priority}`);
+  if (node.disclosure) meta.push(node.disclosure);
+  if (node.content_length > 0) meta.push(`${node.content_length} chars`);
+  if (meta.length > 0)
+    line += ` ${theme.fg("dim", `· ${meta.join(" · ")}`)}`;
+  return line;
+}
+
+function countNodes(nodes: ListNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    count++;
+    if (node.children?.length) count += countNodes(node.children);
+  }
+  return count;
+}
+
+function renderNodeTree(
+  nodes: ListNode[],
+  theme: any,
+  prefix: string,
+  isLast: boolean[],
+): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]!;
+    const last = i === nodes.length - 1;
+    const branch = last ? "└─ " : "├─ ";
+    const indent = isLast.map((l) => (l ? "   " : "│  ")).join("");
+    out.push(`${theme.fg("muted", `${indent}${branch}`)}${formatNodeRow(node, theme)}`);
+    if (node.children?.length) {
+      out.push(...renderNodeTree(node.children, theme, prefix, [...isLast, last]));
+    }
+  }
+  return out;
 }
 
 export const memoryList = defineTool({
@@ -54,7 +111,8 @@ export const memoryList = defineTool({
     if (isPartial) return renderResultPending(call, theme, "listing");
     if (errored) return renderResultError(call, theme, result, "list failed");
 
-    const { total, lines: allLines } = parseListResult(result);
+    const nodes = parseListResult(result);
+    const total = countNodes(nodes);
     const summary = total === 0
       ? theme.fg("muted", "empty")
       : theme.fg("success", `${total} node${total === 1 ? "" : "s"}`);
@@ -63,18 +121,18 @@ export const memoryList = defineTool({
     if (total === 0) return lines(text);
 
     if (expanded) {
-      const limit = 20;
-      text += `\n${allLines.slice(0, limit)
-        .map((line: string) => `${theme.fg("muted", "  │ ")}${theme.fg("dim", line)}`)
-        .join("\n")}`;
-      if (total > limit) {
-        const more = total - limit;
-        text += `\n${theme.fg("muted", `  │ … ${more} more node${more === 1 ? "" : "s"}`)}`;
-      }
+      const treeLines = renderNodeTree(nodes, theme, "", []);
+      text += `\n${treeLines.join("\n")}`;
     } else {
-      const firstLine = allLines[0] ?? "";
-      text += `\n${theme.fg("muted", "  └ ")}${theme.fg("dim", firstLine)}`;
-      if (total > 1) text += theme.fg("dim", ` · ${total - 1} more · ctrl+o to expand`);
+      const topNodes = nodes.slice(0, 3);
+      for (let i = 0; i < topNodes.length; i++) {
+        const connector = i === topNodes.length - 1 && nodes.length <= 3 ? "└" : "├";
+        const glyph = connector === "└" ? "  └ " : "  │ ";
+        text += `\n${theme.fg("muted", glyph)}${formatNodeRow(topNodes[i]!, theme)}`;
+      }
+      const remaining = total - topNodes.length;
+      if (remaining > 0)
+        text += theme.fg("dim", ` · ${remaining} more · ctrl+o to expand`);
     }
     return lines(text);
   },
