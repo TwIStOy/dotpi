@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { registerAgents } from "./agent-types.js";
 import { AgentManager } from "./agent-manager.js";
 import { registerAgentTool } from "./tools/agent-tool.js";
@@ -108,4 +108,75 @@ export default function initSubagents(pi: ExtensionAPI): void {
   registerGetResultTool(pi, manager);
   registerSteerTool(pi, manager);
   registerAgentsCommand(pi, manager, scheduler);
+
+  // ── RPC Bridge for task execution (subagents:rpc:*) ──
+  let latestRpcCtx: ExtensionContext | undefined;
+
+  const captureRpcCtx = (_event: any, ctx: ExtensionContext) => {
+    latestRpcCtx = ctx;
+  };
+  pi.on("tool_execution_start", captureRpcCtx);
+  pi.on("session_start", captureRpcCtx);
+
+  // RPC: Ping (protocol version handshake)
+  pi.events.on("subagents:rpc:ping", (raw: unknown) => {
+    const data = raw as { requestId: string };
+    pi.events.emit(`subagents:rpc:ping:reply:${data.requestId}`, {
+      success: true,
+      data: { version: 2 },
+    });
+  });
+
+  // RPC: Spawn — spawn a background agent and return its ID
+  pi.events.on("subagents:rpc:spawn", (raw: unknown) => {
+    const data = raw as {
+      requestId: string;
+      type: string;
+      prompt: string;
+      options?: any;
+    };
+    if (!latestRpcCtx) {
+      pi.events.emit(`subagents:rpc:spawn:reply:${data.requestId}`, {
+        success: false,
+        error: "No context available",
+      });
+      return;
+    }
+    try {
+      const agentId = manager.spawn(pi, latestRpcCtx, data.type, data.prompt, {
+        description: data.options?.description ?? data.type,
+        isBackground: true,
+        maxTurns: data.options?.maxTurns,
+        ...(data.options?.model ? { model: data.options.model } : {}),
+      });
+      pi.events.emit(`subagents:rpc:spawn:reply:${data.requestId}`, {
+        success: true,
+        data: { id: agentId },
+      });
+    } catch (err: any) {
+      pi.events.emit(`subagents:rpc:spawn:reply:${data.requestId}`, {
+        success: false,
+        error: err.message,
+      });
+    }
+  });
+
+  // RPC: Stop — abort a running agent
+  pi.events.on("subagents:rpc:stop", (raw: unknown) => {
+    const data = raw as {
+      requestId: string;
+      agentId: string;
+    };
+    try {
+      manager.abort(data.agentId);
+      pi.events.emit(`subagents:rpc:stop:reply:${data.requestId}`, {
+        success: true,
+      });
+    } catch (err: any) {
+      pi.events.emit(`subagents:rpc:stop:reply:${data.requestId}`, {
+        success: false,
+        error: err.message,
+      });
+    }
+  });
 }

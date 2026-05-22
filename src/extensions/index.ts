@@ -11,6 +11,7 @@ import initQuestions from "./questions/index.js";
 import initSubagents from "./subagents/index.js";
 import initBtw from "./btw/index.js";
 import initToolRenderer from "./tool-renderer/index.js";
+import initTasks from "./tasks/index.js";
 
 export function initExtensions(pi: ExtensionAPI) {
   initToolCallCasing(pi);
@@ -20,6 +21,7 @@ export function initExtensions(pi: ExtensionAPI) {
   initCompactStatusline(pi);
   initContextUsage(pi);
   initSubagents(pi);
+  initTasks(pi);
   initToolRenderer(pi);
   initBtw(pi);
   // Primary-agent must run before questions so preset replacement is applied first;
