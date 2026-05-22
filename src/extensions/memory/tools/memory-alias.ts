@@ -2,6 +2,13 @@ import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { runHat } from "../cli-runner.js";
 import { jsonError, jsonResult } from "../tool-result.js";
+import {
+  buildCallLine,
+  lines,
+  renderCall,
+  renderResultError,
+  renderResultPending,
+} from "./render.js";
 
 export const memoryAlias = defineTool({
   name: "memory-alias",
@@ -70,5 +77,32 @@ export const memoryAlias = defineTool({
     } catch (e) {
       return jsonError(e);
     }
+  },
+  renderCall(args: any, theme: any, context: any) {
+    if (args?.remove_uri) {
+      return renderCall(theme, context, "Memory alias", args.remove_uri, " (remove)");
+    }
+    return renderCall(
+      theme,
+      context,
+      "Memory alias",
+      args?.new_uri ?? "",
+      args?.target_uri ? ` → ${args.target_uri}` : undefined,
+    );
+  },
+  renderResult(result: any, opts: any, theme: any, context: any) {
+    const isPartial = opts?.isPartial;
+    const errored = Boolean(context?.isError || result?.isError);
+    const args = context?.args ?? {};
+    const isRemove = !!args.remove_uri;
+    const uri = isRemove ? args.remove_uri : args.new_uri ?? "";
+    const suffix = isRemove ? " (remove)" : (args.target_uri ? ` → ${args.target_uri}` : "");
+    const call = buildCallLine(theme, "Memory alias", uri, suffix);
+
+    if (isPartial) return renderResultPending(call, theme, "aliasing");
+    if (errored) return renderResultError(call, theme, result, "alias failed");
+
+    const label = isRemove ? "removed" : "created";
+    return lines(`${call}${theme.fg("dim", " · ")}${theme.fg("success", label)}`);
   },
 });

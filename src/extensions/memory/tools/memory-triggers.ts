@@ -2,6 +2,13 @@ import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { runHat } from "../cli-runner.js";
 import { jsonError, jsonResult } from "../tool-result.js";
+import {
+  buildCallLine,
+  lines,
+  renderCall,
+  renderResultError,
+  renderResultPending,
+} from "./render.js";
 
 export const memoryTriggers = defineTool({
   name: "memory-triggers",
@@ -35,5 +42,29 @@ export const memoryTriggers = defineTool({
     } catch (e) {
       return jsonError(e);
     }
+  },
+  renderCall(args: any, theme: any, context: any) {
+    const uri = args?.uri ?? "";
+    const parts: string[] = [];
+    if (args?.add?.length) parts.push(`+${args.add.length}`);
+    if (args?.remove?.length) parts.push(`-${args.remove.length}`);
+    const suffix = parts.length > 0 ? ` ${parts.join(" ")}` : "";
+    return renderCall(theme, context, "Memory triggers", uri, suffix || undefined);
+  },
+  renderResult(result: any, opts: any, theme: any, context: any) {
+    const isPartial = opts?.isPartial;
+    const errored = Boolean(context?.isError || result?.isError);
+    const args = context?.args ?? {};
+    const uri = args.uri ?? "";
+    const call = buildCallLine(theme, "Memory triggers", uri);
+
+    if (isPartial) return renderResultPending(call, theme, "updating triggers");
+    if (errored) return renderResultError(call, theme, result, "triggers failed");
+
+    const parts: string[] = [];
+    if (args.add?.length) parts.push(`+${args.add.length} keyword${args.add.length === 1 ? "" : "s"}`);
+    if (args.remove?.length) parts.push(`-${args.remove.length} keyword${args.remove.length === 1 ? "" : "s"}`);
+    const detail = parts.length > 0 ? parts.join(", ") : "updated";
+    return lines(`${call}${theme.fg("dim", " · ")}${theme.fg("success", detail)}`);
   },
 });
