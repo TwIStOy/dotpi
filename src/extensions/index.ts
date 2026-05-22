@@ -9,6 +9,7 @@ import initMemory from "./memory/index.js";
 import initPrimaryAgent from "./primary-agent/index.js";
 import initQuestions from "./questions/index.js";
 import initSubagents from "./subagents/index.js";
+import initBtw from "./btw/index.js";
 import initToolRenderer from "./tool-renderer/index.js";
 
 export function initExtensions(pi: ExtensionAPI) {
@@ -20,6 +21,7 @@ export function initExtensions(pi: ExtensionAPI) {
   initContextUsage(pi);
   initSubagents(pi);
   initToolRenderer(pi);
+  initBtw(pi);
   // Primary-agent must run before questions so preset replacement is applied first;
   // questions then appends its tool appendix to the effective system prompt.
   initPrimaryAgent(pi);
