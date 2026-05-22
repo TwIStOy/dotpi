@@ -3,34 +3,21 @@ import type {
   ExtensionCommandContext,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { dotcodeInstallHint, isDotcodeBinaryAvailable } from "./cli-health.js";
 import { buildReorganizeMemoryPrompt } from "./commands/reorganize-memory-template.js";
 import { buildSelfImprovePrompt } from "./commands/self-improve-template.js";
-import { registerJournalTools } from "./journal-tools.js";
 import { buildMemoryStatusReport } from "./memory-status.js";
-import { registerMemoryTools } from "./memory-tools.js";
+import { registerJournalTools, registerMemoryTools } from "./tools/index.js";
 import {
-  getDotcodeNamespace,
+  getNamespace,
   isDisabledByEnv,
-  isDotcodeMemoryEnabled,
-  setSessionDotcodeNamespace,
+  isMemoryEnabled,
+  setSessionNamespace,
 } from "./settings.js";
 import { generateSystemPrompt } from "./system-prompt.js";
 
-const INSTALL_GUARD = Symbol.for("dotpi.dotcode-memory.installed");
+const INSTALL_GUARD = Symbol.for("dotpi.memory.installed");
 
 let toolsRegistered = false;
-let startupNotifyDone = false;
-
-async function maybeNotifyMissingCli(ctx: ExtensionContext): Promise<void> {
-  if (startupNotifyDone) return;
-  startupNotifyDone = true;
-  if (!(await isDotcodeBinaryAvailable())) {
-    if (ctx.hasUI) {
-      ctx.ui.notify(dotcodeInstallHint(), "warning");
-    }
-  }
-}
 
 function ensureToolsRegistered(pi: ExtensionAPI, ctx: ExtensionContext): void {
   if (toolsRegistered) return;
@@ -39,16 +26,16 @@ function ensureToolsRegistered(pi: ExtensionAPI, ctx: ExtensionContext): void {
   registerJournalTools(pi, () => ctx.cwd);
 }
 
-export default function initDotcodeMemory(pi: ExtensionAPI): void {
+export default function initMemory(pi: ExtensionAPI): void {
   const guard = pi as unknown as Record<symbol, boolean>;
   if (guard[INSTALL_GUARD]) return;
   guard[INSTALL_GUARD] = true;
 
   pi.registerCommand("memory-status", {
     description:
-      "Show dotcode-memory enablement, CLI health, resolved binary, and domain list.",
+      "Show memory extension enablement, CLI health, resolved binary, and domain list.",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
-      setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+      setSessionNamespace(getNamespace(ctx));
       const report = await buildMemoryStatusReport(ctx);
       if (ctx.hasUI) {
         ctx.ui.notify(report, "info");
@@ -70,16 +57,16 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
         return;
       }
 
-      if (!isDotcodeMemoryEnabled(ctx)) {
+      if (!isMemoryEnabled(ctx)) {
         if (ctx.hasUI) {
           ctx.ui.notify(
-            "dotcode-memory tools are disabled (settings or DOTPI_DOTCODE_MEMORY). Reflection can continue, but memory-* and journal-* writes may fail until enabled.",
+            "memory tools are disabled (settings or DOTPI_MEMORY). Reflection can continue, but memory-* and journal-* writes may fail until enabled.",
             "warning",
           );
         }
       }
 
-      setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+      setSessionNamespace(getNamespace(ctx));
       pi.sendUserMessage(buildSelfImprovePrompt(args));
     },
   });
@@ -98,17 +85,17 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
         return;
       }
 
-      if (!isDotcodeMemoryEnabled(ctx)) {
+      if (!isMemoryEnabled(ctx)) {
         if (ctx.hasUI) {
           ctx.ui.notify(
-            "dotcode-memory tools are disabled. Enable memory tools before reorganizing the graph.",
+            "memory tools are disabled. Enable memory tools before reorganizing the graph.",
             "warning",
           );
         }
         return;
       }
 
-      setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+      setSessionNamespace(getNamespace(ctx));
       pi.sendUserMessage(buildReorganizeMemoryPrompt(args));
     },
   });
@@ -116,15 +103,14 @@ export default function initDotcodeMemory(pi: ExtensionAPI): void {
   if (isDisabledByEnv()) return;
 
   pi.on("session_start", async (_event, ctx) => {
-    if (!isDotcodeMemoryEnabled(ctx)) return;
-    setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+    if (!isMemoryEnabled(ctx)) return;
+    setSessionNamespace(getNamespace(ctx));
     ensureToolsRegistered(pi, ctx);
-    await maybeNotifyMissingCli(ctx);
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
-    if (!isDotcodeMemoryEnabled(ctx)) return;
-    setSessionDotcodeNamespace(getDotcodeNamespace(ctx));
+    if (!isMemoryEnabled(ctx)) return;
+    setSessionNamespace(getNamespace(ctx));
     if (!toolsRegistered) {
       ensureToolsRegistered(pi, ctx);
     }

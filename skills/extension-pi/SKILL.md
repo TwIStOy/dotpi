@@ -258,7 +258,7 @@ pi.registerCommand("my-command", {
 });
 ```
 
-Reference implementation: `src/extensions/dotcode-memory/commands/` (`self-improve-template.ts`, `reorganize-memory-template.ts`). Register long-running workflow commands **before** any early-return that disables the rest of the extension if the command should still exist when tools are off (e.g. `/memory-status`).
+Reference implementation: `src/extensions/memory/commands/` (`self-improve-template.ts`, `reorganize-memory-template.ts`). Register long-running workflow commands **before** any early-return that disables the rest of the extension if the command should still exist when tools are off (e.g. `/memory-status`).
 
 ### Input interception
 ```typescript

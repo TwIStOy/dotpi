@@ -84,7 +84,7 @@ function buildGraphMemoryToolRows(toolNames: string[]): string[] {
   if (memory.length > 0) {
     const list = memory.map((n) => `\`${n}\``).join(", ");
     rows.push(
-      `- ${list} — **graph memory (dotcode)** — URI-addressed persistent memory shared with the dotcode app. On a new session, \`memory-read\` \`system://boot\` before other work. Use \`memory-search\` with keywords when you do not know the URI; do not invent \`domain://\` paths.`,
+      `- ${list} — **graph memory (hat)** — URI-addressed persistent memory shared with the hat app. On a new session, \`memory-read\` \`system://boot\` before other work. Use \`memory-search\` with keywords when you do not know the URI; do not invent \`domain://\` paths.`,
     );
   }
   if (journal.length > 0) {

@@ -1,13 +1,9 @@
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { runHat } from "./cli-runner.js";
 import {
-  dotcodeInstallHint,
-  isDotcodeBinaryAvailable,
-} from "./cli-health.js";
-import { getDotcodeBinaryPath, runDotcode } from "./cli-runner.js";
-import {
-  getDotcodeNamespace,
+  getNamespace,
   isDisabledByEnv,
-  isDotcodeMemoryEnabled,
+  isMemoryEnabled,
 } from "./settings.js";
 
 function formatDomainEntry(entry: unknown): string {
@@ -67,49 +63,34 @@ export async function buildMemoryStatusReport(
 ): Promise<string> {
   if (isDisabledByEnv()) {
     return (
-      "dotcode-memory: disabled for this process (DOTPI_DOTCODE_MEMORY=0 / false / off)."
+      "memory: disabled for this process (DOTPI_MEMORY=0 / false / off)."
     );
   }
 
-  if (!isDotcodeMemoryEnabled(ctx)) {
+  if (!isMemoryEnabled(ctx)) {
     return (
-      "dotcode-memory: disabled in project settings (dotcodeMemory.enabled: false)."
+      "memory: disabled in project settings (memory.enabled: false)."
     );
   }
 
-  const lines: string[] = ["dotcode-memory: enabled"];
+  const lines: string[] = ["memory: enabled"];
 
-  const namespace = getDotcodeNamespace(ctx);
+  const namespace = getNamespace(ctx);
   lines.push(
     namespace
-      ? `Namespace: ${namespace} (dotcode --namespace)`
+      ? `Namespace: ${namespace} (hat --namespace)`
       : "Namespace: (default — shared store)",
   );
 
-  const bin = getDotcodeBinaryPath();
-  const resolved =
-    bin === "dotcode" ? "dotcode (PATH)" : `resolved: ${bin}`;
-  lines.push(`CLI: ${resolved}`);
+  lines.push("CLI: hat");
 
-  const available = await isDotcodeBinaryAvailable();
-  if (available) {
-    lines.push("CLI health: OK (binary found or `memory domains` succeeded)");
-  } else {
-    lines.push("CLI health: not available");
-    lines.push(dotcodeInstallHint());
-  }
-
-  if (available) {
-    try {
-      const domains = await runDotcode(["memory", "domains"], {
-        namespace,
-      });
-      lines.push(formatDomainsResult(domains));
-    } catch (e) {
-      lines.push(`Domains: ${String(e)}`);
-    }
-  } else {
-    lines.push("Domains: skipped (CLI unavailable)");
+  try {
+    const domains = await runHat(["memory", "domains"], {
+      namespace,
+    });
+    lines.push(formatDomainsResult(domains));
+  } catch (e) {
+    lines.push(`Domains: ${String(e)}`);
   }
 
   return lines.join("\n");

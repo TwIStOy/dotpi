@@ -1,5 +1,5 @@
 /**
- * `/reorganize-memory` user-message template (from dotcode plugin reorganize-memory.ts).
+ * `/reorganize-memory` user-message template.
  */
 
 export const REORGANIZE_MEMORY_TEMPLATE = `Perform a comprehensive audit and reorganization of the entire memory tree.

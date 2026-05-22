@@ -6,7 +6,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
  *
  * ```json
  * {
- *   "dotcodeMemory": {
+ *   "memory": {
  *     "enabled": false,
  *     "namespace": "agent-a"
  *   }
@@ -15,11 +15,11 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
  *
  * Omit the key or set `"enabled": true` (default) to load memory tools and prompts.
  */
-export const DOTCODE_MEMORY_SETTINGS_KEY = "dotcodeMemory";
+export const MEMORY_SETTINGS_KEY = "memory";
 
-export type DotcodeMemorySettings = {
+export type MemorySettings = {
   enabled?: boolean;
-  /** Passed to dotcode global `--namespace` (default ""). */
+  /** Passed to hat global `--namespace` (default ""). */
   namespace?: string;
 };
 
@@ -28,44 +28,44 @@ const NAMESPACE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 /**
  * Only `[a-zA-Z0-9_-]+` or empty; invalid values become "".
  */
-export function sanitizeDotcodeNamespace(raw: unknown): string {
+export function sanitizeNamespace(raw: unknown): string {
   if (typeof raw !== "string") return "";
   const trimmed = raw.trim();
   if (trimmed === "") return "";
   return NAMESPACE_PATTERN.test(trimmed) ? trimmed : "";
 }
 
-let sessionDotcodeNamespace = "";
+let sessionNamespace = "";
 
 /** Updated on session_start / before_agent_start from project settings. */
-export function setSessionDotcodeNamespace(namespace: string): void {
-  sessionDotcodeNamespace = namespace;
+export function setSessionNamespace(namespace: string): void {
+  sessionNamespace = namespace;
 }
 
-export function getSessionDotcodeNamespace(): string {
-  return sessionDotcodeNamespace;
+export function getSessionNamespace(): string {
+  return sessionNamespace;
 }
 
-/** Process-wide override: set `DOTPI_DOTCODE_MEMORY=0` to disable before any session. */
+/** Process-wide override: set `DOTPI_MEMORY=0` to disable before any session. */
 export function isDisabledByEnv(): boolean {
-  const v = process.env.DOTPI_DOTCODE_MEMORY?.trim().toLowerCase();
+  const v = process.env.DOTPI_MEMORY?.trim().toLowerCase();
   return v === "0" || v === "false" || v === "off";
 }
 
 function readFromProjectSettings(
   raw: unknown,
-): DotcodeMemorySettings | undefined {
+): MemorySettings | undefined {
   if (!raw || typeof raw !== "object") return undefined;
-  const block = (raw as Record<string, unknown>)[DOTCODE_MEMORY_SETTINGS_KEY];
+  const block = (raw as Record<string, unknown>)[MEMORY_SETTINGS_KEY];
   if (!block || typeof block !== "object") return undefined;
-  return block as DotcodeMemorySettings;
+  return block as MemorySettings;
 }
 
 /**
- * Whether dotcode-memory should register tools and append memory/journal instructions.
+ * Whether the memory extension should register tools and append memory/journal instructions.
  * Defaults to enabled when unset.
  */
-export function isDotcodeMemoryEnabled(ctx?: ExtensionContext): boolean {
+export function isMemoryEnabled(ctx?: ExtensionContext): boolean {
   if (isDisabledByEnv()) return false;
   const settings = (
     ctx as { settingsManager?: { getProjectSettings?: () => unknown } }
@@ -77,13 +77,13 @@ export function isDotcodeMemoryEnabled(ctx?: ExtensionContext): boolean {
 }
 
 /**
- * Namespace for dotcode CLI (`--namespace`), from `dotcodeMemory.namespace`.
+ * Namespace for hat CLI (`--namespace`), from `memory.namespace`.
  */
-export function getDotcodeNamespace(ctx?: ExtensionContext): string {
+export function getNamespace(ctx?: ExtensionContext): string {
   const settings = (
     ctx as { settingsManager?: { getProjectSettings?: () => unknown } }
   )?.settingsManager;
   const project = settings?.getProjectSettings?.();
   const cfg = readFromProjectSettings(project);
-  return sanitizeDotcodeNamespace(cfg?.namespace ?? "");
+  return sanitizeNamespace(cfg?.namespace ?? "");
 }
