@@ -3,7 +3,6 @@ import { Type } from "typebox";
 import { runHat } from "../cli-runner.js";
 import { jsonError, jsonResult } from "../tool-result.js";
 import {
-  buildCallLine,
   lines,
   emptyComponent,
   renderResultError,

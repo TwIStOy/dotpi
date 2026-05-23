@@ -4,7 +4,6 @@ import { runHat } from "../cli-runner.js";
 import { jsonError, jsonResult } from "../tool-result.js";
 import {
   buildCallLine,
-  emptyComponent,
   lines,
   renderCall,
   renderResultError,

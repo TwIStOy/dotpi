@@ -23,6 +23,10 @@ import {
   collectExtensionAgentDirs,
 } from "./custom-agents.js";
 
+// Public API surface for cross-extension consumers
+export { listEnabledAgents } from "./agent-types.js";
+export type { AgentConfig, SubagentRoutingHints } from "./types.js";
+
 export default function initSubagents(pi: ExtensionAPI): void {
   registerAgents(new Map());
 

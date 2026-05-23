@@ -67,7 +67,7 @@ export class ScheduleEngine {
       if (next) {
         this.store.updateJob(job.id, { nextRun: next.toISOString() });
       }
-    } catch (_err) {
+    } catch {
       this.store.updateJob(job.id, { enabled: false });
     }
   }

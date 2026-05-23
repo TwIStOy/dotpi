@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { AgentConfig, SubagentRoutingHints } from "../../subagents/types.js";
-import { listEnabledAgents } from "../../subagents/agent-types.js";
+import type { AgentConfig, SubagentRoutingHints } from "../../subagents/index.js";
+import { listEnabledAgents } from "../../subagents/index.js";
 
 function routingKeyForAgentName(name: string): string {
   return name.trim().toLowerCase();
