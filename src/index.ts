@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import registerZai from "./providers/zai/index.js";
+import registerZai from "./extensions/zai-provider/index.js";
 import { registerPrompts } from "./prompts/index.js";
 import { initExtensions } from "./extensions/index.js";
 

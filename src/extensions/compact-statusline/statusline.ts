@@ -11,7 +11,7 @@ import { GIT_REFRESH_TIMEOUT_MS, SHOW_DIRTY_MARKER } from "./settings.js";
 import {
   getZaiUsageSnapshot,
   isCurrentModelZai,
-} from "../../providers/zai/status.js";
+} from "../zai-provider/status.js";
 
 const ZAI_ETA_DISPLAY_MAX = 14;
 const PRIMARY_AGENT_STATUSLINE_LABEL_MAX = 22;
