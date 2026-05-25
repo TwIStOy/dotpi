@@ -4,6 +4,7 @@ import type {
   ExtensionContext,
   Theme,
 } from "@earendil-works/pi-coding-agent";
+import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { subagentStatuslineMarker } from "./agent-statusline.js";
 import { readPrimaryAgentStatuslineBridge } from "./bridges.js";
@@ -247,13 +248,32 @@ export function renderStatusLine(
   const primaryLabel = primaryAgentStatuslineLabel(ctx);
   const primaryPlainPrefix = primaryLabel ? `${primaryLabel} ` : "";
   const projectChunk = `${primaryPlainPrefix}${gitAndProject} ${modelChunk}`;
-  const statusSeparator = " / ";
-  const thinkingLevel = normalizeThinkingLevel(pi.getThinkingLevel());
+
+  // Determine whether to show the reasoning/thinking level in the statusline.
+  // Hide if: model lacks reasoning support, no configurable levels beyond default, or current level is the default ("off").
+  const model = ctx.model;
+  const rawLevel = pi.getThinkingLevel();
+  const thinkingLevel = normalizeThinkingLevel(rawLevel);
+  let showThinking = false;
+  if (model?.reasoning) {
+    try {
+      const supported = getSupportedThinkingLevels(model as any);
+      const canConfig = supported.some((l) => l !== "off");
+      const isDefault = thinkingLevel === "off";
+      showThinking = canConfig && !isDefault;
+    } catch {
+      showThinking = false;
+    }
+  }
   const thinkingChunk = thinkingLevel;
+
+  const statusSeparator = " / ";
   const contextChunk = ` ${contextLabel}`;
   const zaiPlain = zaiUsagePlainSuffix(ctx);
   const zaiColored = zaiUsageColoredSuffix(ctx, theme);
-  const leftPlain = `${projectChunk}${statusSeparator}${thinkingChunk}${contextChunk}${zaiPlain}`;
+  const leftPlain = showThinking
+    ? `${projectChunk}${statusSeparator}${thinkingChunk}${contextChunk}${zaiPlain}`
+    : `${projectChunk}${statusSeparator}${contextLabel}${zaiPlain}`;
   const percentPlain = percent === null ? "…%" : `${percent}%`;
   const subagentMarker = subagentStatuslineMarker(ctx.cwd);
   const rightPlain = subagentMarker
@@ -268,11 +288,18 @@ export function renderStatusLine(
           ? "warning"
           : "success";
   const separatorColored = theme.fg("muted", statusSeparator);
-  const leftColored =
-    (primaryLabel
-      ? `${theme.fg("success", `${primaryLabel} `)}`
-      : "") +
-    `${theme.fg("accent", `${gitAndProject} `)}${theme.fg("accent", modelChunk)}${separatorColored}${theme.fg(THINKING_TOKEN[thinkingLevel], thinkingChunk)}${theme.fg("accent", contextChunk)}${zaiColored}`;
+  const primaryColoredPrefix = primaryLabel
+    ? `${theme.fg("success", `${primaryLabel} `)}`
+    : "";
+  const modelColoredPart =
+    `${theme.fg("accent", `${gitAndProject} `)}${theme.fg("accent", modelChunk)}`;
+  const leftColored = showThinking
+    ? primaryColoredPrefix +
+      modelColoredPart +
+      `${separatorColored}${theme.fg(THINKING_TOKEN[thinkingLevel], thinkingChunk)}${theme.fg("accent", contextChunk)}${zaiColored}`
+    : primaryColoredPrefix +
+      modelColoredPart +
+      `${separatorColored}${theme.fg("accent", contextLabel)}${zaiColored}`;
   const right = subagentMarker
     ? `${theme.fg(percentColor, percentPlain)} ${subagentMarker.styled}`
     : theme.fg(percentColor, percentPlain);
