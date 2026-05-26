@@ -2,6 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
+import { getAgentConversation } from "../agent-runner.js";
 import {
   existsSync,
   mkdirSync,
@@ -108,6 +109,8 @@ async function showAgentDetail(
   const actions: string[] = [];
   if (record.status === "running") {
     actions.push("Abort");
+  }
+  if (record.session) {
     actions.push("View conversation");
   }
   if (record.status === "completed" && record.result) {
@@ -125,6 +128,8 @@ async function showAgentDetail(
   if (choice === "Abort") {
     manager.abort(record.id);
     ctx.ui.notify(`Agent ${record.id.slice(0, 8)} aborted.`, "info");
+  } else if (choice === "View conversation") {
+    await showConversation(ctx, record);
   } else if (choice === "View result") {
     ctx.ui.notify(record.result?.slice(0, 500) || "No output.", "info");
   } else if (choice === "View error") {
@@ -572,6 +577,69 @@ async function createScheduledJob(
     `Scheduled job "${job.name}" created (${job.scheduleType}: ${job.schedule}).`,
     "info",
   );
+}
+
+const CONVERSATION_PAGE_SIZE = 40;
+
+async function showConversation(
+  ctx: ExtensionCommandContext,
+  record: AgentRecord,
+): Promise<void> {
+  if (!record.session) {
+    ctx.ui.notify("No session available for this agent.", "info");
+    return;
+  }
+
+  const messages = record.session.messages;
+  const roleCounts = messages.reduce(
+    (acc, msg) => {
+      const role = msg.role as string;
+      acc[role] = (acc[role] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+  const conversation = getAgentConversation(record.session);
+  if (!conversation) {
+    const debug = Object.entries(roleCounts)
+      .map(([role, count]) => `${role}: ${count}`)
+      .join(", ");
+    ctx.ui.notify(
+      `No conversation messages rendered (${messages.length} raw: ${debug}).`,
+      "info",
+    );
+    return;
+  }
+
+  const allLines = conversation.split("\n");
+  let page = 0;
+  const totalPages = Math.max(1, Math.ceil(allLines.length / CONVERSATION_PAGE_SIZE));
+
+  while (true) {
+    const start = page * CONVERSATION_PAGE_SIZE;
+    const end = Math.min(start + CONVERSATION_PAGE_SIZE, allLines.length);
+    const pageLines = allLines.slice(start, end);
+
+    const header =
+      `Agent: ${record.type} (${record.id.slice(0, 8)}) · ${record.status}` +
+      ` · Page ${page + 1}/${totalPages}`;
+
+    const options: string[] = [...pageLines, ""];
+    if (page > 0) options.push("← Previous page");
+    if (page < totalPages - 1) options.push("→ Next page");
+    options.push("Back");
+
+    const choice = await ctx.ui.select(header, options);
+    if (!choice) return;
+
+    if (choice === "← Previous page") {
+      page--;
+    } else if (choice === "→ Next page") {
+      page++;
+    } else {
+      return;
+    }
+  }
 }
 
 export function registerAgentsCommand(

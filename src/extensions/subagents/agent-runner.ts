@@ -484,7 +484,8 @@ export function getAgentConversation(session: AgentSession): string {
     } else if (msg.role === "assistant") {
       const textParts: string[] = [];
       const toolCalls: string[] = [];
-      for (const c of msg.content) {
+      const content = Array.isArray(msg.content) ? msg.content : [];
+      for (const c of content) {
         if (c.type === "text" && c.text) textParts.push(c.text);
         else if (c.type === "toolCall")
           toolCalls.push(
@@ -495,6 +496,15 @@ export function getAgentConversation(session: AgentSession): string {
         parts.push(`[Assistant]: ${textParts.join("\n")}`);
       if (toolCalls.length > 0)
         parts.push(`[Tool Calls]:\n${toolCalls.join("\n")}`);
+
+      const hasError = (msg as any).stopReason === "error" || (msg as any).errorMessage;
+      const isEmpty = textParts.length === 0 && toolCalls.length === 0;
+      if (isEmpty && hasError) {
+        const err = (msg as any).errorMessage || "Unknown error";
+        parts.push(`[Assistant]: (error: ${err})`);
+      } else if (isEmpty) {
+        parts.push(`[Assistant]: (no visible content)`);
+      }
     } else if (msg.role === "toolResult") {
       const text = extractText(msg.content);
       const truncated = text.length > 200 ? text.slice(0, 200) + "..." : text;
